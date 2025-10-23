@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MPI Payroll System -Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MPI Payroll System</h1>
+            <p>Dashboard Komputasi Paralel dengan Input Data Manual</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab(event, 'data')">Data Karyawan</button>
+            <button class="tab" onclick="switchTab(event, 'benchmark')">Benchmark MPI</button>
+            <button class="tab" onclick="switchTab(event, 'hasil')">Hasil Gaji</button>
+        </div>
+        
+        <!-- Tab: Data Karyawan -->
+        <div id="tab-data" class="tab-content active">
+            <div class="grid-2">
+                <div class="card">
+                    <h2>Input Data Karyawan</h2>
+                    <form id="formKaryawan" onsubmit="addKaryawan(event)">
+                        <div class="form-group">
+                            <label>ID Karyawan</label>
+                            <input type="text" id="karyawan_id" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nama</label>
+                            <input type="text" id="karyawan_nama" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Jabatan</label>
+                            <input type="text" id="karyawan_jabatan" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Gaji Pokok per Hari (Rp)</label>
+                            <input type="number" id="karyawan_gaji" step="1000" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Tambah Karyawan</button>
+                        <button type="button" class="btn btn-danger" onclick="clearAll()">Hapus Semua</button>
+                    </form>
+                </div>
+                
+                <div class="card">
+                    <h2>Input Data Absen</h2>
+                    <form id="formAbsen" onsubmit="addAbsen(event)">
+                        <div class="form-group">
+                            <label>Pilih Karyawan</label>
+                            <select id="absen_id" required>
+                                <option value="">-- Pilih Karyawan --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Jumlah Hari Masuk</label>
+                            <input type="number" id="absen_hari" min="1" max="31" required>
+                        </div>
+                        <button type="submit" class="btn btn-success">Simpan Absen</button>
+                    </form>
+                    
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-warning" onclick="hitungGaji('serial')">Hitung (Serial)</button>
+                        <button class="btn btn-primary" onclick="hitungGaji('parallel')">Hitung (Parallel)</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Daftar Karyawan (<span id="totalKaryawan">0</span>)</h2>
+                <div id="tableKaryawan"></div>
+            </div>
+            
+            <div class="card">
+                <h2>Data Absen</h2>
+                <div id="tableAbsen"></div>
+            </div>
+        </div>
+        
+        <!-- Tab: Benchmark -->
+        <div id="tab-benchmark" class="tab-content">
+            <div class="card">
+                <h2>Status: <span id="statusText" class="status-badge status-idle">Idle</span></h2>
+            </div>
+            
+            <div class="card">
+                <h2>Program MPI Tersedia</h2>
+                <div class="programs-grid" id="programsGrid"></div>
+            </div>
+            
+            <div class="card">
+                <h2>Hasil Benchmark</h2>
+                <button class="btn btn-danger" onclick="clearResults()">Hapus Hasil</button>
+                <div id="benchmarkResults"></div>
+            </div>
+        </div>
+        
+        <!-- Tab: Hasil -->
+        <div id="tab-hasil" class="tab-content">
+            <div class="card">
+                <h2>Hasil Perhitungan Gaji</h2>
+                <button class="btn btn-success" onclick="exportData()">Export ke CSV</button>
+                <div id="tableGaji"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
