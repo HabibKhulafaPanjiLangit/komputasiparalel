@@ -400,6 +400,52 @@ def export_data():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
+@app.route('/api/generate-dummy', methods=['POST'])
+def generate_dummy():
+    """Generate dummy data untuk testing"""
+    import random
+    
+    data = request.json
+    jumlah = int(data.get('jumlah', 10))
+    
+    if jumlah < 1 or jumlah > 1000:
+        return jsonify({'error': 'Jumlah harus antara 1-1000'}), 400
+    
+    jabatan_list = ["Manager", "Supervisor", "Staff Senior", "Staff", "Operator"]
+    nama_depan = ["Andi", "Budi", "Citra", "Deni", "Eka", "Fajar", "Gita", "Hadi", "Indra", "Joko",
+                  "Kiki", "Lina", "Maya", "Nana", "Omar", "Putri", "Qori", "Rina", "Sari", "Tono"]
+    nama_belakang = ["Pratama", "Wijaya", "Santoso", "Permana", "Saputra", "Kurniawan", 
+                     "Putra", "Wibowo", "Setiawan", "Hidayat"]
+    
+    with status_lock:
+        # Clear existing data
+        data_karyawan.clear()
+        data_absen.clear()
+        data_gaji.clear()
+        
+        for i in range(1, jumlah + 1):
+            # Generate karyawan
+            karyawan = {
+                'id': f"K{i:03d}",
+                'nama': f"{random.choice(nama_depan)} {random.choice(nama_belakang)}",
+                'jabatan': random.choice(jabatan_list),
+                'gaji_pokok': random.randint(150, 500) * 1000
+            }
+            data_karyawan.append(karyawan)
+            
+            # Generate absen
+            absen = {
+                'id': karyawan['id'],
+                'hari_masuk': random.randint(15, 30)
+            }
+            data_absen.append(absen)
+    
+    return jsonify({
+        'success': True,
+        'jumlah': jumlah,
+        'message': f'{jumlah} data karyawan dan absen berhasil di-generate'
+    })
+
 if __name__ == '__main__':
     print("\n" + "="*60)
     print("  MPI PAYROLL SYSTEM - WEB DASHBOARD")

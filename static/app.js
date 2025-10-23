@@ -18,6 +18,9 @@ function switchTab(event, tabName) {
         loadAbsen();
     } else if (tabName === 'hasil') {
         loadGaji();
+    } else if (tabName === 'interactive') {
+        loadInteractiveStats();
+        loadKaryawanForSelect();
     }
 }
 
@@ -381,4 +384,304 @@ async function clearAll() {
     } catch (error) {
         alert('Error: ' + error.message);
     }
+}
+
+// ===== INTERACTIVE MODE FUNCTIONS =====
+
+async function loadInteractiveStats() {
+    try {
+        const [karyawanRes, absenRes, gajiRes] = await Promise.all([
+            fetch('/api/karyawan'),
+            fetch('/api/absen'),
+            fetch('/api/gaji')
+        ]);
+        
+        const karyawan = await karyawanRes.json();
+        const absen = await absenRes.json();
+        const gaji = await gajiRes.json();
+        
+        document.getElementById('statKaryawan').textContent = karyawan.length;
+        document.getElementById('statAbsen').textContent = absen.length;
+        document.getElementById('statGaji').textContent = gaji.length;
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+function showInputKaryawanForm() {
+    document.getElementById('formInputKaryawan').style.display = 'block';
+    document.getElementById('formInputAbsen').style.display = 'none';
+    document.getElementById('resultInteractive').style.display = 'none';
+}
+
+function hideInputKaryawanForm() {
+    document.getElementById('formInputKaryawan').style.display = 'none';
+}
+
+function showInputAbsenForm() {
+    loadKaryawanForSelect();
+    document.getElementById('formInputAbsen').style.display = 'block';
+    document.getElementById('formInputKaryawan').style.display = 'none';
+    document.getElementById('resultInteractive').style.display = 'none';
+}
+
+function hideInputAbsenForm() {
+    document.getElementById('formInputAbsen').style.display = 'none';
+}
+
+async function loadKaryawanForSelect() {
+    try {
+        const response = await fetch('/api/karyawan');
+        const karyawan = await response.json();
+        
+        const select = document.getElementById('int_absen_id');
+        select.innerHTML = '<option value="">-- Pilih Karyawan --</option>' +
+            karyawan.map(k => `<option value="${k.id}">${k.id} - ${k.nama}</option>`).join('');
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+async function submitKaryawanInteractive(event) {
+    event.preventDefault();
+    
+    const data = {
+        id: document.getElementById('int_karyawan_id').value,
+        nama: document.getElementById('int_karyawan_nama').value,
+        jabatan: document.getElementById('int_karyawan_jabatan').value,
+        gaji_pokok: parseFloat(document.getElementById('int_karyawan_gaji').value)
+    };
+    
+    try {
+        const response = await fetch('/api/karyawan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showResult(`Berhasil! Karyawan ${data.nama} telah ditambahkan.`, 'success');
+            document.querySelector('#formInputKaryawan form').reset();
+            hideInputKaryawanForm();
+            loadInteractiveStats();
+        } else {
+            showResult('Error: ' + result.error, 'error');
+        }
+    } catch (error) {
+        showResult('Error: ' + error.message, 'error');
+    }
+}
+
+async function submitAbsenInteractive(event) {
+    event.preventDefault();
+    
+    const data = {
+        id: document.getElementById('int_absen_id').value,
+        hari_masuk: parseInt(document.getElementById('int_absen_hari').value)
+    };
+    
+    try {
+        const response = await fetch('/api/absen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showResult(`Berhasil! Data absen untuk ${data.id} telah disimpan (${data.hari_masuk} hari).`, 'success');
+            document.querySelector('#formInputAbsen form').reset();
+            hideInputAbsenForm();
+            loadInteractiveStats();
+        } else {
+            showResult('Error: ' + result.error, 'error');
+        }
+    } catch (error) {
+        showResult('Error: ' + error.message, 'error');
+    }
+}
+
+async function hitungGajiInteractive(mode) {
+    updateInteractiveStatus('running');
+    showResult(`Menghitung gaji dalam mode ${mode.toUpperCase()}...`, 'info');
+    
+    try {
+        const response = await fetch('/api/gaji/hitung', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: mode })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            updateInteractiveStatus('success');
+            showResult(
+                `<strong>Perhitungan Selesai!</strong><br>
+                Mode: ${mode.toUpperCase()}<br>
+                Waktu Eksekusi: ${result.waktu_eksekusi}<br>
+                Total Karyawan: ${result.jumlah}<br>
+                <button class="btn" style="background: #4299e1; color: white; margin-top: 10px;" onclick="tampilkanDataGaji()">Lihat Hasil</button>`,
+                'success'
+            );
+            loadInteractiveStats();
+        } else {
+            updateInteractiveStatus('error');
+            showResult('Error: ' + result.error, 'error');
+        }
+    } catch (error) {
+        updateInteractiveStatus('error');
+        showResult('Error: ' + error.message, 'error');
+    }
+}
+
+async function tampilkanDataGaji() {
+    try {
+        const response = await fetch('/api/gaji');
+        const gaji = await response.json();
+        
+        if (gaji.length === 0) {
+            showResult('Belum ada data gaji. Silakan hitung terlebih dahulu.', 'info');
+            return;
+        }
+        
+        const total = gaji.reduce((sum, g) => sum + g.total_gaji, 0);
+        
+        let html = `
+            <h4>Data Gaji Karyawan (${gaji.length} karyawan)</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nama</th>
+                        <th>Jabatan</th>
+                        <th>Hari Masuk</th>
+                        <th>Total Gaji</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        gaji.forEach(g => {
+            html += `
+                <tr>
+                    <td>${g.id}</td>
+                    <td>${g.nama}</td>
+                    <td>${g.jabatan}</td>
+                    <td>${g.hari_masuk} hari</td>
+                    <td><strong>Rp ${g.total_gaji.toLocaleString()}</strong></td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    <tr style="background: #f7fafc; font-weight: bold;">
+                        <td colspan="4" style="text-align: right;">TOTAL SEMUA GAJI</td>
+                        <td>Rp ${total.toLocaleString()}</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+        
+        showResult(html, 'success');
+    } catch (error) {
+        showResult('Error: ' + error.message, 'error');
+    }
+}
+
+async function simpanSemuaData() {
+    try {
+        const response = await fetch('/api/data/export');
+        if (response.ok) {
+            // Download file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `payroll_data_${new Date().getTime()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showResult('Data berhasil disimpan dan didownload sebagai CSV!', 'success');
+        } else {
+            showResult('Error: Gagal menyimpan data', 'error');
+        }
+    } catch (error) {
+        showResult('Error: ' + error.message, 'error');
+    }
+}
+
+async function muatDariCSV() {
+    showResult('Fitur muat dari CSV akan mengambil data yang ada di server.', 'info');
+    loadInteractiveStats();
+}
+
+async function generateDummyData() {
+    const jumlah = prompt('Berapa jumlah karyawan dummy yang ingin dibuat?', '10');
+    if (!jumlah) return;
+    
+    try {
+        const response = await fetch('/api/generate-dummy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jumlah: parseInt(jumlah) })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showResult(`Berhasil generate ${result.jumlah} karyawan dummy beserta data absennya!`, 'success');
+            loadInteractiveStats();
+        } else {
+            showResult('Error: ' + result.error, 'error');
+        }
+    } catch (error) {
+        showResult('Error: ' + error.message, 'error');
+    }
+}
+
+async function hapusSemuaDataInteractive() {
+    if (!confirm('Hapus semua data karyawan, absen, dan gaji? Tindakan ini tidak dapat dibatalkan!')) return;
+    
+    try {
+        const responseKaryawan = await fetch('/api/karyawan');
+        const karyawan = await responseKaryawan.json();
+        
+        for (const k of karyawan) {
+            await fetch(`/api/karyawan/${k.id}`, { method: 'DELETE' });
+        }
+        
+        showResult('Semua data telah dihapus!', 'success');
+        loadInteractiveStats();
+    } catch (error) {
+        showResult('Error: ' + error.message, 'error');
+    }
+}
+
+function showResult(message, type) {
+    const resultDiv = document.getElementById('resultInteractive');
+    const contentDiv = document.getElementById('resultContent');
+    
+    let className = '';
+    if (type === 'success') className = 'status-success';
+    else if (type === 'error') className = 'status-error';
+    else if (type === 'info') className = 'status-running';
+    
+    contentDiv.innerHTML = `<div class="${className}" style="padding: 15px; border-radius: 5px;">${message}</div>`;
+    resultDiv.style.display = 'block';
+    
+    // Hide forms when showing result
+    hideInputKaryawanForm();
+    hideInputAbsenForm();
+}
+
+function updateInteractiveStatus(status) {
+    const statusSpan = document.getElementById('statusInteractive');
+    statusSpan.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+    statusSpan.className = `status-badge status-${status}`;
 }

@@ -282,3 +282,29 @@ pre {
         flex-direction: column;
     }
 }
+
+/* Menu Grid for Interactive Mode */
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.menu-grid .btn {
+    margin: 0;
+    width: 100%;
+}
+
+#statsInteractive table {
+    width: 100%;
+}
+
+#statsInteractive table tr td {
+    padding: 8px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+#statsInteractive table tr:last-child td {
+    border-bottom: none;
+}

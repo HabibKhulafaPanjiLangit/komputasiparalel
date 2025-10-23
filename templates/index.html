@@ -15,6 +15,7 @@
         
         <div class="tabs">
             <button class="tab active" onclick="switchTab(event, 'data')">Data Karyawan</button>
+            <button class="tab" onclick="switchTab(event, 'interactive')">Mode Interaktif</button>
             <button class="tab" onclick="switchTab(event, 'benchmark')">Benchmark MPI</button>
             <button class="tab" onclick="switchTab(event, 'hasil')">Hasil Gaji</button>
         </div>
@@ -77,6 +78,117 @@
             <div class="card">
                 <h2>Data Absen</h2>
                 <div id="tableAbsen"></div>
+            </div>
+        </div>
+        
+        <!-- Tab: Interactive Mode -->
+        <div id="tab-interactive" class="tab-content">
+            <div class="card">
+                <h2>Mode Interaktif - Menu Lengkap</h2>
+                <p>Sistem payroll dengan menu interaktif lengkap: input manual, otomatis, dan komputasi paralel.</p>
+            </div>
+            
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Menu Operasi</h3>
+                    <div class="menu-grid">
+                        <button class="btn btn-primary" onclick="showInputKaryawanForm()">1. Input Data Karyawan</button>
+                        <button class="btn btn-primary" onclick="showInputAbsenForm()">2. Input Data Absen</button>
+                        <button class="btn btn-success" onclick="hitungGajiInteractive('serial')">3. Hitung Gaji (Serial)</button>
+                        <button class="btn btn-warning" onclick="hitungGajiInteractive('parallel')">4. Hitung Gaji (Parallel)</button>
+                        <button class="btn" style="background: #4299e1; color: white;" onclick="tampilkanDataGaji()">5. Tampilkan Data Gaji</button>
+                        <button class="btn btn-success" onclick="simpanSemuaData()">7. Simpan Semua Data ke CSV</button>
+                        <button class="btn" style="background: #805ad5; color: white;" onclick="muatDariCSV()">8. Muat Data dari CSV</button>
+                        <button class="btn" style="background: #ed8936; color: white;" onclick="generateDummyData()">9. Generate Data Dummy</button>
+                        <button class="btn btn-danger" onclick="hapusSemuaDataInteractive()">0. Hapus Semua Data</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>Statistik Data</h3>
+                    <div id="statsInteractive">
+                        <table>
+                            <tr>
+                                <td><strong>Total Karyawan:</strong></td>
+                                <td><span id="statKaryawan">0</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Data Absen:</strong></td>
+                                <td><span id="statAbsen">0</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Gaji Terhitung:</strong></td>
+                                <td><span id="statGaji">0</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Status:</strong></td>
+                                <td><span id="statusInteractive" class="status-badge status-idle">Idle</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Form Input Karyawan (Hidden by default) -->
+            <div id="formInputKaryawan" class="card" style="display: none;">
+                <h3>Input Data Karyawan Baru</h3>
+                <form onsubmit="submitKaryawanInteractive(event)">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>ID Karyawan</label>
+                            <input type="text" id="int_karyawan_id" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nama Lengkap</label>
+                            <input type="text" id="int_karyawan_nama" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Jabatan</label>
+                            <select id="int_karyawan_jabatan" required>
+                                <option value="">-- Pilih Jabatan --</option>
+                                <option value="Manager">Manager</option>
+                                <option value="Supervisor">Supervisor</option>
+                                <option value="Staff Senior">Staff Senior</option>
+                                <option value="Staff">Staff</option>
+                                <option value="Operator">Operator</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Gaji Pokok per Hari (Rp)</label>
+                            <input type="number" id="int_karyawan_gaji" step="1000" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Simpan Karyawan</button>
+                    <button type="button" class="btn btn-danger" onclick="hideInputKaryawanForm()">Batal</button>
+                </form>
+            </div>
+            
+            <!-- Form Input Absen (Hidden by default) -->
+            <div id="formInputAbsen" class="card" style="display: none;">
+                <h3>Input Data Absensi</h3>
+                <form onsubmit="submitAbsenInteractive(event)">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Pilih Karyawan</label>
+                            <select id="int_absen_id" required>
+                                <option value="">-- Pilih Karyawan --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Jumlah Hari Masuk (1-31)</label>
+                            <input type="number" id="int_absen_hari" min="1" max="31" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success">Simpan Absen</button>
+                    <button type="button" class="btn btn-danger" onclick="hideInputAbsenForm()">Batal</button>
+                </form>
+            </div>
+            
+            <!-- Result Display -->
+            <div id="resultInteractive" class="card" style="display: none;">
+                <h3>Hasil Operasi</h3>
+                <div id="resultContent"></div>
+                <button class="btn" style="background: #718096; color: white;" onclick="document.getElementById('resultInteractive').style.display='none'">Tutup</button>
             </div>
         </div>
         
