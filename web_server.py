@@ -47,39 +47,102 @@ def index():
     return render_template('index.html')
 
 @app.route('/api/programs', methods=['GET'])
-def get_programs():
+def get_programs_api():
     """Mendapatkan daftar program MPI yang tersedia"""
+    
+    # Check if MPI is available
+    try:
+        mpi_available = subprocess.run(
+            'mpiexec --version' if os.name != 'nt' else 'mpiexec -help',
+            shell=True,
+            capture_output=True,
+            timeout=5
+        ).returncode == 0
+    except:
+        mpi_available = False
+    
     programs = [
+        {
+            'id': 'payroll_serial',
+            'name': 'Demo Payroll Serial',
+            'file': 'payroll_demo_serial.py',
+            'description': 'Demo sistem penggajian (No MPI - works in production)',
+            'expected_speedup': 'N/A',
+            'requires_mpi': False
+        },
         {
             'id': 'pi_montecarlo',
             'name': 'Monte Carlo Pi Calculation',
             'file': 'pi_montecarlo_mpi.py',
-            'description': 'Menghitung nilai Pi menggunakan metode Monte Carlo',
-            'expected_speedup': '4.81x'
+            'description': 'Menghitung nilai Pi menggunakan metode Monte Carlo (Requires MPI)',
+            'expected_speedup': '4.81x',
+            'requires_mpi': True
         },
         {
             'id': 'payroll_demo',
             'name': 'Demo Payroll Otomatis',
             'file': 'demo_payroll_mpi.py',
-            'description': 'Demo sistem penggajian dengan 10,000 karyawan',
-            'expected_speedup': 'N/A'
+            'description': 'Demo sistem penggajian dengan 10,000 karyawan (Requires MPI)',
+            'expected_speedup': 'N/A',
+            'requires_mpi': True
         },
         {
             'id': 'payroll_complex',
             'name': 'Benchmark Payroll Kompleks',
             'file': 'demo_payroll_complex.py',
-            'description': 'Benchmark dengan perhitungan pajak CPU-intensive',
-            'expected_speedup': '3.34x'
+            'description': 'Benchmark dengan perhitungan pajak CPU-intensive (Requires MPI)',
+            'expected_speedup': '3.34x',
+            'requires_mpi': True
         },
         {
             'id': 'payroll_simple',
             'name': 'Benchmark Payroll Sederhana',
             'file': 'demo_payroll_benchmark.py',
-            'description': 'Benchmark dengan perhitungan sederhana',
-            'expected_speedup': '0.33x (overhead dominan)'
+            'description': 'Benchmark dengan perhitungan sederhana (Requires MPI)',
+            'expected_speedup': '0.33x (overhead dominan)',
+            'requires_mpi': True
         }
     ]
-    return jsonify(programs)
+    
+    # Filter programs based on MPI availability
+    if not mpi_available:
+        # Only show non-MPI programs in production
+        programs = [p for p in programs if not p.get('requires_mpi', False)]
+    
+    return programs
+
+@app.route('/api/system/info', methods=['GET'])
+def system_info():
+    """Get system information"""
+    import multiprocessing
+    import platform
+    
+    # Check MPI availability
+    mpi_available = False
+    mpi_version = "Not available"
+    try:
+        result = subprocess.run(
+            ['mpiexec', '--version'],
+            capture_output=True,
+            timeout=5,
+            text=True
+        )
+        if result.returncode == 0:
+            mpi_available = True
+            mpi_version = result.stdout.strip().split('\n')[0]
+    except:
+        pass
+    
+    info = {
+        'cpu_count': multiprocessing.cpu_count(),
+        'platform': platform.system(),
+        'python_version': platform.python_version(),
+        'mpi_available': mpi_available,
+        'mpi_version': mpi_version,
+        'recommended_processes': multiprocessing.cpu_count()
+    }
+    
+    return jsonify(info)
 
 @app.route('/api/run/<program_id>', methods=['POST'])
 def run_program(program_id):
@@ -92,13 +155,13 @@ def run_program(program_id):
                 'message': 'Program lain sedang berjalan. Tunggu hingga selesai.'
             }), 400
     
-    # Mapping program
-    program_files = {
-        'pi_montecarlo': 'pi_montecarlo_mpi.py',
-        'payroll_demo': 'demo_payroll_mpi.py',
-        'payroll_complex': 'demo_payroll_complex.py',
-        'payroll_simple': 'demo_payroll_benchmark.py'
-    }
+    # Get program list and build mapping
+    programs = get_programs_api()
+    program_files = {}
+    
+    # Build mapping from programs
+    for prog in programs.json:
+        program_files[prog['id']] = prog['file']
     
     if program_id not in program_files:
         return jsonify({
@@ -134,12 +197,50 @@ def run_mpi_program(program_id, program_file, num_processes):
         current_status['output'] = ''
     
     try:
-        # Jalankan program MPI
-        cmd = f'mpiexec -n {num_processes} python {program_file}'
+        # Detect available CPU cores
+        import multiprocessing
+        max_cores = multiprocessing.cpu_count()
+        
+        # Limit processes to available cores
+        actual_processes = min(num_processes, max_cores)
+        
+        # Check if mpiexec is available
+        mpiexec_available = False
+        try:
+            check_result = subprocess.run(
+                ['mpiexec', '--version'],
+                capture_output=True,
+                timeout=5
+            )
+            mpiexec_available = check_result.returncode == 0
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            # Try alternative check
+            try:
+                check_result = subprocess.run(
+                    'which mpiexec',
+                    shell=True,
+                    capture_output=True,
+                    timeout=5
+                )
+                mpiexec_available = check_result.returncode == 0
+            except:
+                mpiexec_available = False
+        
+        # Build command
+        if mpiexec_available and actual_processes > 1:
+            # Use MPI with optimal process count
+            cmd = ['mpiexec', '-n', str(actual_processes), 'python', program_file]
+            print(f"[MPI] Running with {actual_processes} processes (max cores: {max_cores})")
+        else:
+            # Fallback to serial execution
+            cmd = ['python', program_file]
+            if not mpiexec_available:
+                print(f"[WARNING] mpiexec not available, running in serial mode")
+            else:
+                print(f"[INFO] Single process requested, running in serial mode")
         
         result = subprocess.run(
             cmd,
-            shell=True,
             capture_output=True,
             text=True,
             timeout=300,  # 5 menit timeout

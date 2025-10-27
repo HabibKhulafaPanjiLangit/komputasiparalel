@@ -28,12 +28,36 @@ function switchTab(event, tabName) {
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', function() {
+    loadSystemInfo();
     loadPrograms();
     loadKaryawan();
     loadAbsen();
     updateStatus();
     setInterval(updateStatus, 2000); // Check status every 2 seconds
 });
+
+// Load system information
+async function loadSystemInfo() {
+    try {
+        const response = await fetch('/api/system/info');
+        const info = await response.json();
+        
+        const infoDiv = document.getElementById('systemInfo');
+        let html = 'System: ';
+        html += info.cpu_count + ' CPUs | ';
+        html += 'Python ' + info.python_version + ' | ';
+        
+        if (info.mpi_available) {
+            html += 'MPI: ' + info.mpi_version + ' (Optimal: ' + info.recommended_processes + ' processes)';
+        } else {
+            html += 'MPI: Not available (Serial mode only)';
+        }
+        
+        infoDiv.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading system info:', error);
+    }
+}
 
 // Load available programs
 async function loadPrograms() {
