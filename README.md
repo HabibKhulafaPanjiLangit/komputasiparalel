@@ -26,9 +26,11 @@ Sistem penggajian karyawan berbasis **MPI (Message Passing Interface)** dengan w
 ## 📋 Requirements
 
 ```
-Python 3.14+
+Python 3.11+
 mpi4py
-Flask 3.1.2
+Flask 3.0.0
+SQLAlchemy 1.4.50
+PostgreSQL (production) / SQLite (development)
 ```
 
 ## 🔧 Instalasi
@@ -78,6 +80,12 @@ mpiexec -n 4 python demo_payroll_complex.py
 2. Tambahkan data absensi (pilih karyawan, input hari masuk)
 3. Klik **"Hitung (Serial)"** atau **"Hitung (Parallel)"**
 
+### Tab "Mode Interaktif" ⭐ NEW!
+- 9 menu operasi lengkap
+- Input manual atau generate dummy data
+- Hitung gaji serial/parallel
+- Save/load dari CSV
+
 ### Tab "Benchmark MPI"
 - Klik program MPI yang tersedia untuk menjalankan benchmark
 - Lihat status real-time dan hasil output
@@ -86,6 +94,37 @@ mpiexec -n 4 python demo_payroll_complex.py
 - Lihat tabel hasil perhitungan gaji
 - Total gaji semua karyawan
 - Export ke CSV
+
+## 💾 Database - Persistent Storage
+
+**Local Development:**
+- Auto menggunakan SQLite (`payroll.db`)
+- Data tersimpan di file database lokal
+
+**Production (Railway/Render):**
+- Menggunakan PostgreSQL
+- Data persistent, tidak hilang saat restart
+- Auto-configured dari environment variable
+
+Lihat [DATABASE.md](DATABASE.md) untuk detail lengkap.
+
+## 🚀 Deploy ke Cloud (GRATIS!)
+
+Aplikasi ini ready untuk di-deploy ke platform gratis:
+
+### **Railway.app** (RECOMMENDED) ⭐
+- $5 credit gratis/bulan
+- PostgreSQL included
+- Auto-deploy dari GitHub
+- [Panduan lengkap](DEPLOY.md)
+
+### **Render.com** (Alternative)
+- 100% gratis
+- PostgreSQL gratis
+- Auto-deploy dari GitHub
+- [Quick start](DEPLOY-QUICK.md)
+
+**Step-by-step:** Lihat file [DEPLOY.md](DEPLOY.md) atau [DEPLOY-QUICK.md](DEPLOY-QUICK.md)
 
 ## 🧪 Hasil Benchmark
 
