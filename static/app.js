@@ -21,6 +21,8 @@ function switchTab(event, tabName) {
     } else if (tabName === 'interactive') {
         loadInteractiveStats();
         loadKaryawanForSelect();
+    } else if (tabName === 'database') {
+        loadDatabaseInfo();
     }
 }
 
@@ -685,3 +687,122 @@ function updateInteractiveStatus(status) {
     statusSpan.textContent = status.charAt(0).toUpperCase() + status.slice(1);
     statusSpan.className = `status-badge status-${status}`;
 }
+
+// ========================================
+// DATABASE BROWSER FUNCTIONS
+// ========================================
+
+async function loadDatabaseInfo() {
+    const infoDiv = document.getElementById('databaseInfo');
+    infoDiv.innerHTML = '<p style="text-align: center; padding: 20px;">⏳ Loading database information...</p>';
+    
+    try {
+        const response = await fetch('/api/database/browse');
+        const result = await response.json();
+        
+        if (!result.success) {
+            infoDiv.innerHTML = `<div class="status-error" style="padding: 15px;">${result.message}</div>`;
+            return;
+        }
+        
+        const db = result.database;
+        
+        let html = `
+            <div class="database-header" style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <h3>📊 Database Information</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">
+                    <div>
+                        <strong>Path:</strong><br>
+                        <code style="font-size: 11px;">${db.path}</code>
+                    </div>
+                    <div>
+                        <strong>Size:</strong><br>
+                        ${formatBytes(db.size)}
+                    </div>
+                    <div>
+                        <strong>Last Modified:</strong><br>
+                        ${db.modified}
+                    </div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <strong>Tables:</strong> ${db.tables.length}
+                </div>
+            </div>
+        `;
+        
+        // Display each table
+        for (const table of db.tables) {
+            html += `
+                <div class="database-table" style="margin-bottom: 30px; border: 1px solid #ddd; border-radius: 5px; overflow: hidden;">
+                    <div style="background: #2c3e50; color: white; padding: 10px 15px;">
+                        <h3 style="margin: 0;">📁 ${table.name.toUpperCase()}</h3>
+                        <small>${table.count} records</small>
+                    </div>
+                    
+                    <div style="padding: 15px; background: #f9f9f9;">
+                        <strong>Columns:</strong>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px;">
+                            ${table.columns.map(col => `
+                                <span style="background: ${col.primary_key ? '#3498db' : '#95a5a6'}; color: white; padding: 3px 8px; border-radius: 3px; font-size: 12px;">
+                                    ${col.name} (${col.type})${col.primary_key ? ' 🔑' : ''}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+            `;
+            
+            // Display sample data
+            if (table.sample_data && table.sample_data.length > 0) {
+                html += `
+                    <div style="overflow-x: auto; padding: 0;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #34495e; color: white;">
+                                    ${table.columns.map(col => `<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">${col.name}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${table.sample_data.map((row, idx) => `
+                                    <tr style="background: ${idx % 2 === 0 ? 'white' : '#f9f9f9'};">
+                                        ${table.columns.map(col => `<td style="padding: 8px; border: 1px solid #ddd;">${row[col.name] || '-'}</td>`).join('')}
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                if (table.count > table.sample_data.length) {
+                    html += `
+                        <div style="padding: 10px; background: #ecf0f1; text-align: center; font-size: 12px; color: #7f8c8d;">
+                            Showing ${table.sample_data.length} of ${table.count} records
+                        </div>
+                    `;
+                }
+            } else {
+                html += `
+                    <div style="padding: 20px; text-align: center; color: #7f8c8d;">
+                        📭 No data in this table
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+        }
+        
+        infoDiv.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading database info:', error);
+        infoDiv.innerHTML = `<div class="status-error" style="padding: 15px;">❌ Error: ${error.message}</div>`;
+    }
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+

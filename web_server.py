@@ -3,7 +3,7 @@ Web Dashboard untuk MPI Payroll System
 Akses melalui: http://localhost:5000
 """
 
-from flask import Flask, render_template, jsonify, request  # type: ignore
+from flask import Flask, render_template, jsonify, request, send_file  # type: ignore
 import subprocess
 import json
 import time
@@ -11,6 +11,21 @@ from datetime import datetime
 import os
 import sys
 import threading
+from io import StringIO
+import csv
+
+# Import database helpers
+try:
+    import db_helper
+    USE_DATABASE = True
+    print("[DB] Database helpers loaded")
+except ImportError as e:
+    USE_DATABASE = False
+    print(f"[DB] Database not available: {e}")
+    # Fallback data
+    data_karyawan = []
+    data_absen = []
+    data_gaji = []
 
 app = Flask(__name__)
 
@@ -22,11 +37,6 @@ current_status = {
     'start_time': None,
     'output': ''
 }
-
-# Data karyawan manual
-data_karyawan = []
-data_absen = []
-data_gaji = []
 
 # Lock untuk thread safety
 status_lock = threading.Lock()
@@ -459,7 +469,99 @@ if __name__ == '__main__':
     print("   - POST /api/run/<program_id>")
     print("   - GET  /api/status")
     print("   - GET  /api/results")
+    print("   - GET  /api/database/browse")
     print("\nTekan Ctrl+C untuk berhenti\n")
     
     # Nonaktifkan reloader untuk menghindari masalah dengan threading
     app.run(debug=False, host='0.0.0.0', port=port, threaded=True)
+
+@app.route('/api/database/browse', methods=['GET'])
+def browse_database_api():
+    """Browse database dan tampilkan info semua table"""
+    try:
+        import sqlite3
+        import os
+        from datetime import datetime
+        
+        db_path = 'payroll.db'
+        
+        # Check if database exists
+        if not os.path.exists(db_path):
+            return jsonify({
+                'success': False,
+                'message': 'Database tidak ditemukan'
+            }), 404
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get database info
+        db_info = {
+            'path': os.path.abspath(db_path),
+            'size': os.path.getsize(db_path),
+            'modified': datetime.fromtimestamp(os.path.getmtime(db_path)).strftime('%Y-%m-%d %H:%M:%S'),
+            'tables': []
+        }
+        
+        # Get all tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        
+        for table in tables:
+            table_name = table[0]
+            
+            # Get count
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count = cursor.fetchone()[0]
+            
+            # Get column info
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            columns = []
+            for col in cursor.fetchall():
+                columns.append({
+                    'name': col[1],
+                    'type': col[2],
+                    'notnull': col[3],
+                    'primary_key': col[5]
+                })
+            
+            # Get sample data (first 100 rows)
+            cursor.execute(f"SELECT * FROM {table_name} LIMIT 100")
+            rows = cursor.fetchall()
+            
+            table_info = {
+                'name': table_name,
+                'count': count,
+                'columns': columns,
+                'sample_data': []
+            }
+            
+            # Format sample data
+            if rows:
+                column_names = [col['name'] for col in columns]
+                for row in rows:
+                    row_dict = {}
+                    for i, col_name in enumerate(column_names):
+                        value = row[i]
+                        # Format value for display
+                        if isinstance(value, float):
+                            row_dict[col_name] = f"{value:,.0f}"
+                        else:
+                            row_dict[col_name] = str(value) if value is not None else None
+                    table_info['sample_data'].append(row_dict)
+            
+            db_info['tables'].append(table_info)
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'database': db_info
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+

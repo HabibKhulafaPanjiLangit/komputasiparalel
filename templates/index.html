@@ -18,6 +18,7 @@
             <button class="tab" onclick="switchTab(event, 'interactive')">Mode Interaktif</button>
             <button class="tab" onclick="switchTab(event, 'benchmark')">Benchmark MPI</button>
             <button class="tab" onclick="switchTab(event, 'hasil')">Hasil Gaji</button>
+            <button class="tab" onclick="switchTab(event, 'database')">Database Browser</button>
         </div>
         
         <!-- Tab: Data Karyawan -->
@@ -216,6 +217,17 @@
                 <h2>Hasil Perhitungan Gaji</h2>
                 <button class="btn btn-success" onclick="exportData()">Export ke CSV</button>
                 <div id="tableGaji"></div>
+            </div>
+        </div>
+        
+        <!-- Tab: Database Browser -->
+        <div id="tab-database" class="tab-content">
+            <div class="card">
+                <h2>Database Browser</h2>
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="loadDatabaseInfo()">🔄 Refresh Database</button>
+                </div>
+                <div id="databaseInfo"></div>
             </div>
         </div>
     </div>
