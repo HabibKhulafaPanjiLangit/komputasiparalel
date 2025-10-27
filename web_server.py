@@ -109,6 +109,68 @@ def get_programs_api():
         # Only show non-MPI programs in production
         programs = [p for p in programs if not p.get('requires_mpi', False)]
     
+    return jsonify(programs)
+
+def get_programs_list():
+    """Helper function to get programs list (not jsonified)"""
+    # Check if MPI is available
+    try:
+        mpi_available = subprocess.run(
+            'mpiexec --version' if os.name != 'nt' else 'mpiexec -help',
+            shell=True,
+            capture_output=True,
+            timeout=5
+        ).returncode == 0
+    except:
+        mpi_available = False
+    
+    programs = [
+        {
+            'id': 'payroll_serial',
+            'name': 'Demo Payroll Serial',
+            'file': 'payroll_demo_serial.py',
+            'description': 'Demo sistem penggajian (No MPI - works in production)',
+            'expected_speedup': 'N/A',
+            'requires_mpi': False
+        },
+        {
+            'id': 'pi_montecarlo',
+            'name': 'Monte Carlo Pi Calculation',
+            'file': 'pi_montecarlo_mpi.py',
+            'description': 'Menghitung nilai Pi menggunakan metode Monte Carlo (Requires MPI)',
+            'expected_speedup': '4.81x',
+            'requires_mpi': True
+        },
+        {
+            'id': 'payroll_demo',
+            'name': 'Demo Payroll Otomatis',
+            'file': 'demo_payroll_mpi.py',
+            'description': 'Demo sistem penggajian dengan 10,000 karyawan (Requires MPI)',
+            'expected_speedup': 'N/A',
+            'requires_mpi': True
+        },
+        {
+            'id': 'payroll_complex',
+            'name': 'Benchmark Payroll Kompleks',
+            'file': 'demo_payroll_complex.py',
+            'description': 'Benchmark dengan perhitungan pajak CPU-intensive (Requires MPI)',
+            'expected_speedup': '3.34x',
+            'requires_mpi': True
+        },
+        {
+            'id': 'payroll_simple',
+            'name': 'Benchmark Payroll Sederhana',
+            'file': 'demo_payroll_benchmark.py',
+            'description': 'Benchmark dengan perhitungan sederhana (Requires MPI)',
+            'expected_speedup': '0.33x (overhead dominan)',
+            'requires_mpi': True
+        }
+    ]
+    
+    # Filter programs based on MPI availability
+    if not mpi_available:
+        programs = [p for p in programs if not p.get('requires_mpi', False)]
+    
     return programs
 
 @app.route('/api/system/info', methods=['GET'])
@@ -156,11 +218,11 @@ def run_program(program_id):
             }), 400
     
     # Get program list and build mapping
-    programs = get_programs_api()
+    programs = get_programs_list()
     program_files = {}
     
     # Build mapping from programs
-    for prog in programs.json:
+    for prog in programs:
         program_files[prog['id']] = prog['file']
     
     if program_id not in program_files:

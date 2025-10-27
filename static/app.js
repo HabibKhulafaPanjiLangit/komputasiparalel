@@ -66,32 +66,38 @@ async function loadPrograms() {
         programs = await response.json();
         
         const grid = document.getElementById('programsGrid');
-        grid.innerHTML = programs.map(prog => `
-            <div class="program-item" onclick="runProgram('${prog.filename}')">
-                <h3>${prog.name}</h3>
-                <p>${prog.description}</p>
-            </div>
-        `).join('');
+        let html = '';
+        
+        for (const prog of programs) {
+            html += '<div class="program-item" onclick="runProgram(\'' + prog.id + '\')">';
+            html += '<h3>' + prog.name + '</h3>';
+            html += '<p>' + prog.description + '</p>';
+            html += '</div>';
+        }
+        
+        grid.innerHTML = html;
     } catch (error) {
         console.error('Error loading programs:', error);
     }
 }
 
 // Run MPI program
-async function runProgram(filename) {
+async function runProgram(programId) {
     const statusText = document.getElementById('statusText');
     statusText.textContent = 'Running...';
     statusText.className = 'status-badge status-running';
     
     try {
-        const response = await fetch('/api/run/' + filename.replace('.py', ''), {
+        const response = await fetch('/api/run/' + programId, {
             method: 'POST'
         });
         
         const result = await response.json();
         
-        if (result.status === 'running') {
-            alert('Program sedang berjalan...');
+        if (result.success) {
+            alert('Program started: ' + result.message);
+        } else {
+            alert('Error: ' + result.message);
         }
     } catch (error) {
         statusText.textContent = 'Error';
