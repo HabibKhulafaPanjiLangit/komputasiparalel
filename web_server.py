@@ -447,10 +447,13 @@ def generate_dummy():
     })
 
 if __name__ == '__main__':
+    # Get port from environment variable (for deployment) or use 5000 for local
+    port = int(os.environ.get('PORT', 5000))
+    
     print("\n" + "="*60)
     print("  MPI PAYROLL SYSTEM - WEB DASHBOARD")
     print("="*60)
-    print("\nWeb server akan berjalan di: http://localhost:5000")
+    print(f"\nWeb server akan berjalan di: http://0.0.0.0:{port}")
     print("API Endpoints tersedia:")
     print("   - GET  /api/programs")
     print("   - POST /api/run/<program_id>")
@@ -459,4 +462,4 @@ if __name__ == '__main__':
     print("\nTekan Ctrl+C untuk berhenti\n")
     
     # Nonaktifkan reloader untuk menghindari masalah dengan threading
-    app.run(debug=False, host='0.0.0.0', port=5000, threaded=True)
+    app.run(debug=False, host='0.0.0.0', port=port, threaded=True)

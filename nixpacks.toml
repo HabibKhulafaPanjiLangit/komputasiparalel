@@ -1,0 +1,9 @@
+# Nixpacks configuration for Railway
+[phases.setup]
+nixPkgs = ["python311", "mpich"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "python web_server.py"

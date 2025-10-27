@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: mpi-payroll-system
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: bash render-build.sh
+    startCommand: python web_server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
