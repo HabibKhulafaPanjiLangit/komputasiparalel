@@ -46,3 +46,10 @@ Thumbs.db
 # Temporary files
 *.tmp
 temp/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+payroll.db
+.env
