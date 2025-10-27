@@ -577,6 +577,7 @@ def export_data():
 def generate_dummy():
     """Generate dummy data untuk testing"""
     import random
+    from db_helper import add_karyawan, add_absen
     
     data = request.json
     jumlah = int(data.get('jumlah', 10))
@@ -590,33 +591,61 @@ def generate_dummy():
     nama_belakang = ["Pratama", "Wijaya", "Santoso", "Permana", "Saputra", "Kurniawan", 
                      "Putra", "Wibowo", "Setiawan", "Hidayat"]
     
+    karyawan_added = 0
+    absen_added = 0
+    
     with status_lock:
-        # Clear existing data
+        # Clear existing in-memory data
         data_karyawan.clear()
         data_absen.clear()
         data_gaji.clear()
         
         for i in range(1, jumlah + 1):
             # Generate karyawan
-            karyawan = {
-                'id': f"K{i:03d}",
-                'nama': f"{random.choice(nama_depan)} {random.choice(nama_belakang)}",
-                'jabatan': random.choice(jabatan_list),
-                'gaji_pokok': random.randint(150, 500) * 1000
-            }
-            data_karyawan.append(karyawan)
+            karyawan_id = f"K{i:04d}"
+            nama = f"{random.choice(nama_depan)} {random.choice(nama_belakang)}"
+            jabatan = random.choice(jabatan_list)
+            gaji_pokok = random.randint(150, 500) * 1000
             
-            # Generate absen
-            absen = {
-                'id': karyawan['id'],
-                'hari_masuk': random.randint(15, 30)
-            }
-            data_absen.append(absen)
+            # Save to database
+            if add_karyawan(karyawan_id, nama, jabatan, gaji_pokok):
+                karyawan_added += 1
+                
+                # Add to in-memory for compatibility
+                karyawan = {
+                    'id': karyawan_id,
+                    'nama': nama,
+                    'jabatan': jabatan,
+                    'gaji_pokok': gaji_pokok
+                }
+                data_karyawan.append(karyawan)
+                
+                # Generate absen for this karyawan
+                from datetime import datetime, timedelta
+                import random
+                
+                # Generate random attendance for last 30 days
+                base_date = datetime.now() - timedelta(days=30)
+                for day in range(30):
+                    # 80% chance of attendance
+                    if random.random() < 0.8:
+                        tanggal = base_date + timedelta(days=day)
+                        if add_absen(karyawan_id, tanggal.date(), True):
+                            absen_added += 1
+                
+                # Add summary to in-memory for compatibility
+                absen = {
+                    'id': karyawan_id,
+                    'hari_masuk': int(absen_added / karyawan_added) if karyawan_added > 0 else 0
+                }
+                data_absen.append(absen)
     
     return jsonify({
         'success': True,
         'jumlah': jumlah,
-        'message': f'{jumlah} data karyawan dan absen berhasil di-generate'
+        'karyawan_added': karyawan_added,
+        'absen_records': absen_added,
+        'message': f'{karyawan_added} karyawan dan {absen_added} records absen berhasil ditambahkan ke database'
     })
 
 @app.route('/api/database/browse', methods=['GET'])
