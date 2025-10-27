@@ -694,107 +694,92 @@ function updateInteractiveStatus(status) {
 
 async function loadDatabaseInfo() {
     const infoDiv = document.getElementById('databaseInfo');
-    infoDiv.innerHTML = '<p style="text-align: center; padding: 20px;">⏳ Loading database information...</p>';
+    infoDiv.innerHTML = '<p style="text-align: center; padding: 20px;">Loading database information...</p>';
     
     try {
         const response = await fetch('/api/database/browse');
         const result = await response.json();
         
         if (!result.success) {
-            infoDiv.innerHTML = `<div class="status-error" style="padding: 15px;">${result.message}</div>`;
+            infoDiv.innerHTML = '<div class="status-error" style="padding: 15px;">' + result.message + '</div>';
             return;
         }
         
         const db = result.database;
         
-        let html = `
-            <div class="database-header" style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                <h3>📊 Database Information</h3>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">
-                    <div>
-                        <strong>Path:</strong><br>
-                        <code style="font-size: 11px;">${db.path}</code>
-                    </div>
-                    <div>
-                        <strong>Size:</strong><br>
-                        ${formatBytes(db.size)}
-                    </div>
-                    <div>
-                        <strong>Last Modified:</strong><br>
-                        ${db.modified}
-                    </div>
-                </div>
-                <div style="margin-top: 10px;">
-                    <strong>Tables:</strong> ${db.tables.length}
-                </div>
-            </div>
-        `;
+        let html = '<div class="database-header" style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin-bottom: 20px;">';
+        html += '<h3>Database Information</h3>';
+        html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">';
+        html += '<div><strong>Path:</strong><br><code style="font-size: 11px;">' + db.path + '</code></div>';
+        html += '<div><strong>Size:</strong><br>' + formatBytes(db.size) + '</div>';
+        html += '<div><strong>Last Modified:</strong><br>' + db.modified + '</div>';
+        html += '</div>';
+        html += '<div style="margin-top: 10px;"><strong>Tables:</strong> ' + db.tables.length + '</div>';
+        html += '</div>';
         
         // Display each table
         for (const table of db.tables) {
-            html += `
-                <div class="database-table" style="margin-bottom: 30px; border: 1px solid #ddd; border-radius: 5px; overflow: hidden;">
-                    <div style="background: #2c3e50; color: white; padding: 10px 15px;">
-                        <h3 style="margin: 0;">📁 ${table.name.toUpperCase()}</h3>
-                        <small>${table.count} records</small>
-                    </div>
-                    
-                    <div style="padding: 15px; background: #f9f9f9;">
-                        <strong>Columns:</strong>
-                        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px;">
-                            ${table.columns.map(col => `
-                                <span style="background: ${col.primary_key ? '#3498db' : '#95a5a6'}; color: white; padding: 3px 8px; border-radius: 3px; font-size: 12px;">
-                                    ${col.name} (${col.type})${col.primary_key ? ' 🔑' : ''}
-                                </span>
-                            `).join('')}
-                        </div>
-                    </div>
-            `;
+            html += '<div class="database-table" style="margin-bottom: 30px; border: 1px solid #ddd; border-radius: 5px; overflow: hidden;">';
+            html += '<div style="background: #2c3e50; color: white; padding: 10px 15px;">';
+            html += '<h3 style="margin: 0;">' + table.name.toUpperCase() + '</h3>';
+            html += '<small>' + table.count + ' records</small>';
+            html += '</div>';
+            
+            html += '<div style="padding: 15px; background: #f9f9f9;">';
+            html += '<strong>Columns:</strong>';
+            html += '<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px;">';
+            for (const col of table.columns) {
+                const bgColor = col.primary_key ? '#3498db' : '#95a5a6';
+                const keyIcon = col.primary_key ? ' [PK]' : '';
+                html += '<span style="background: ' + bgColor + '; color: white; padding: 3px 8px; border-radius: 3px; font-size: 12px;">';
+                html += col.name + ' (' + col.type + ')' + keyIcon;
+                html += '</span>';
+            }
+            html += '</div></div>';
             
             // Display sample data
             if (table.sample_data && table.sample_data.length > 0) {
-                html += `
-                    <div style="overflow-x: auto; padding: 0;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: #34495e; color: white;">
-                                    ${table.columns.map(col => `<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">${col.name}</th>`).join('')}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${table.sample_data.map((row, idx) => `
-                                    <tr style="background: ${idx % 2 === 0 ? 'white' : '#f9f9f9'};">
-                                        ${table.columns.map(col => `<td style="padding: 8px; border: 1px solid #ddd;">${row[col.name] || '-'}</td>`).join('')}
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
+                html += '<div style="overflow-x: auto; padding: 0;">';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead><tr style="background: #34495e; color: white;">';
+                
+                for (const col of table.columns) {
+                    html += '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">' + col.name + '</th>';
+                }
+                html += '</tr></thead><tbody>';
+                
+                for (let idx = 0; idx < table.sample_data.length; idx++) {
+                    const row = table.sample_data[idx];
+                    const bgColor = idx % 2 === 0 ? 'white' : '#f9f9f9';
+                    html += '<tr style="background: ' + bgColor + ';">';
+                    
+                    for (const col of table.columns) {
+                        const value = row[col.name] || '-';
+                        html += '<td style="padding: 8px; border: 1px solid #ddd;">' + value + '</td>';
+                    }
+                    html += '</tr>';
+                }
+                html += '</tbody></table></div>';
                 
                 if (table.count > table.sample_data.length) {
-                    html += `
-                        <div style="padding: 10px; background: #ecf0f1; text-align: center; font-size: 12px; color: #7f8c8d;">
-                            Showing ${table.sample_data.length} of ${table.count} records
-                        </div>
-                    `;
+                    html += '<div style="padding: 10px; background: #ecf0f1; text-align: center; font-size: 12px; color: #7f8c8d;">';
+                    html += 'Showing ' + table.sample_data.length + ' of ' + table.count + ' records';
+                    html += '</div>';
                 }
             } else {
-                html += `
-                    <div style="padding: 20px; text-align: center; color: #7f8c8d;">
-                        📭 No data in this table
-                    </div>
-                `;
+                html += '<div style="padding: 20px; text-align: center; color: #7f8c8d;">';
+                html += 'No data in this table';
+                html += '</div>';
             }
             
-            html += `</div>`;
+            html += '</div>';
         }
         
         infoDiv.innerHTML = html;
         
     } catch (error) {
         console.error('Error loading database info:', error);
-        infoDiv.innerHTML = `<div class="status-error" style="padding: 15px;">❌ Error: ${error.message}</div>`;
+        infoDiv.innerHTML = '<div class="status-error" style="padding: 15px;">Error: ' + error.message + '</div>';
     }
 }
 
