@@ -19,6 +19,14 @@ try:
     import db_helper
     USE_DATABASE = True
     print("[DB] Database helpers loaded")
+    
+    # Load initial data from database
+    print("[DB] Loading data from database...")
+    data_karyawan = db_helper.get_all_karyawan()
+    data_absen = db_helper.get_all_absen()
+    data_gaji = db_helper.get_all_gaji()
+    print(f"[DB] Loaded: {len(data_karyawan)} karyawan, {len(data_absen)} absen, {len(data_gaji)} gaji")
+    
 except ImportError as e:
     USE_DATABASE = False
     print(f"[DB] Database not available: {e}")
@@ -392,12 +400,16 @@ def clear_results():
 @app.route('/api/karyawan', methods=['GET'])
 def get_karyawan():
     """Mendapatkan semua data karyawan"""
-    with status_lock:
-        karyawan = data_karyawan.copy()
-    return jsonify(karyawan)
+    if USE_DATABASE:
+        # Always reload from database to ensure fresh data
+        return jsonify(db_helper.get_all_karyawan())
+    else:
+        with status_lock:
+            karyawan = data_karyawan.copy()
+        return jsonify(karyawan)
 
 @app.route('/api/karyawan', methods=['POST'])
-def add_karyawan():
+def add_karyawan_endpoint():
     """Menambah data karyawan"""
     data = request.get_json()
     
@@ -405,35 +417,54 @@ def add_karyawan():
         return jsonify({'success': False, 'message': 'Data tidak lengkap'}), 400
     
     try:
-        karyawan = {
-            'id': str(data['id']),
-            'nama': str(data['nama']),
-            'jabatan': str(data['jabatan']),
-            'gaji_pokok': float(data['gaji_pokok'])
-        }
+        karyawan_id = str(data['id'])
+        nama = str(data['nama'])
+        jabatan = str(data['jabatan'])
+        gaji_pokok = float(data['gaji_pokok'])
         
-        with status_lock:
-            # Cek ID duplikat
-            if any(k['id'] == karyawan['id'] for k in data_karyawan):
-                return jsonify({'success': False, 'message': 'ID karyawan sudah ada'}), 400
+        # Save to database if available
+        if USE_DATABASE:
+            if db_helper.add_karyawan(karyawan_id, nama, jabatan, gaji_pokok):
+                return jsonify({'success': True, 'message': 'Karyawan berhasil ditambahkan'})
+            else:
+                return jsonify({'success': False, 'message': 'Gagal menambahkan ke database'}), 500
+        else:
+            # Fallback to in-memory
+            karyawan = {
+                'id': karyawan_id,
+                'nama': nama,
+                'jabatan': jabatan,
+                'gaji_pokok': gaji_pokok
+            }
             
-            data_karyawan.append(karyawan)
-        
-        return jsonify({'success': True, 'message': 'Karyawan berhasil ditambahkan'})
+            with status_lock:
+                # Cek ID duplikat
+                if any(k['id'] == karyawan['id'] for k in data_karyawan):
+                    return jsonify({'success': False, 'message': 'ID karyawan sudah ada'}), 400
+                
+                data_karyawan.append(karyawan)
+            
+            return jsonify({'success': True, 'message': 'Karyawan berhasil ditambahkan'})
     except ValueError as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 400
 
 @app.route('/api/karyawan/<karyawan_id>', methods=['DELETE'])
-def delete_karyawan(karyawan_id):
+def delete_karyawan_endpoint(karyawan_id):
     """Menghapus data karyawan"""
-    with status_lock:
-        global data_karyawan
-        data_karyawan = [k for k in data_karyawan if k['id'] != karyawan_id]
-        # Hapus absen terkait
-        global data_absen
-        data_absen = [a for a in data_absen if a['id'] != karyawan_id]
-    
-    return jsonify({'success': True, 'message': 'Karyawan berhasil dihapus'})
+    if USE_DATABASE:
+        if db_helper.delete_karyawan(karyawan_id):
+            return jsonify({'success': True, 'message': 'Karyawan berhasil dihapus'})
+        else:
+            return jsonify({'success': False, 'message': 'Gagal menghapus dari database'}), 500
+    else:
+        with status_lock:
+            global data_karyawan
+            data_karyawan = [k for k in data_karyawan if k['id'] != karyawan_id]
+            # Hapus absen terkait
+            global data_absen
+            data_absen = [a for a in data_absen if a['id'] != karyawan_id]
+        
+        return jsonify({'success': True, 'message': 'Karyawan berhasil dihapus'})
 
 @app.route('/api/karyawan/clear', methods=['POST'])
 def clear_karyawan():
@@ -447,9 +478,13 @@ def clear_karyawan():
 @app.route('/api/absen', methods=['GET'])
 def get_absen():
     """Mendapatkan semua data absen"""
-    with status_lock:
-        absen = data_absen.copy()
-    return jsonify(absen)
+    if USE_DATABASE:
+        # Always reload from database
+        return jsonify(db_helper.get_all_absen())
+    else:
+        with status_lock:
+            absen = data_absen.copy()
+        return jsonify(absen)
 
 @app.route('/api/absen', methods=['POST'])
 def add_absen():
@@ -544,9 +579,13 @@ def hitung_gaji():
 @app.route('/api/gaji', methods=['GET'])
 def get_gaji():
     """Mendapatkan hasil perhitungan gaji"""
-    with status_lock:
-        gaji = data_gaji.copy()
-    return jsonify(gaji)
+    if USE_DATABASE:
+        # Always reload from database
+        return jsonify(db_helper.get_all_gaji())
+    else:
+        with status_lock:
+            gaji = data_gaji.copy()
+        return jsonify(gaji)
 
 @app.route('/api/data/export', methods=['GET'])
 def export_data():
