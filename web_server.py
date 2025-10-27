@@ -456,25 +456,6 @@ def generate_dummy():
         'message': f'{jumlah} data karyawan dan absen berhasil di-generate'
     })
 
-if __name__ == '__main__':
-    # Get port from environment variable (for deployment) or use 5000 for local
-    port = int(os.environ.get('PORT', 5000))
-    
-    print("\n" + "="*60)
-    print("  MPI PAYROLL SYSTEM - WEB DASHBOARD")
-    print("="*60)
-    print(f"\nWeb server akan berjalan di: http://0.0.0.0:{port}")
-    print("API Endpoints tersedia:")
-    print("   - GET  /api/programs")
-    print("   - POST /api/run/<program_id>")
-    print("   - GET  /api/status")
-    print("   - GET  /api/results")
-    print("   - GET  /api/database/browse")
-    print("\nTekan Ctrl+C untuk berhenti\n")
-    
-    # Nonaktifkan reloader untuk menghindari masalah dengan threading
-    app.run(debug=False, host='0.0.0.0', port=port, threaded=True)
-
 @app.route('/api/database/browse', methods=['GET'])
 def browse_database_api():
     """Browse database dan tampilkan info semua table"""
@@ -565,3 +546,21 @@ def browse_database_api():
             'message': str(e)
         }), 500
 
+if __name__ == '__main__':
+    # Get port from environment variable (for deployment) or use 5000 for local
+    port = int(os.environ.get('PORT', 5000))
+    
+    print("\n" + "="*60)
+    print("  MPI PAYROLL SYSTEM - WEB DASHBOARD")
+    print("="*60)
+    print(f"\nWeb server akan berjalan di: http://0.0.0.0:{port}")
+    print("API Endpoints tersedia:")
+    print("   - GET  /api/programs")
+    print("   - POST /api/run/<program_id>")
+    print("   - GET  /api/status")
+    print("   - GET  /api/results")
+    print("   - GET  /api/database/browse")
+    print("\nTekan Ctrl+C untuk berhenti\n")
+    
+    # Nonaktifkan reloader untuk menghindari masalah dengan threading
+    app.run(debug=False, host='0.0.0.0', port=port, threaded=True)
