@@ -1,3 +1,22 @@
+from flask import Flask, render_template, jsonify, request, send_file  # type: ignore
+from werkzeug.exceptions import HTTPException
+
+app = Flask(__name__)
+
+# Global error handler agar semua error return JSON
+@app.errorhandler(Exception)
+def handle_exception(e):
+    if isinstance(e, HTTPException):
+        return jsonify({
+            'success': False,
+            'error': e.code,
+            'message': e.description
+        }), e.code
+    return jsonify({
+        'success': False,
+        'error': 500,
+        'message': str(e)
+    }), 500
 """
 Web Dashboard untuk MPI Payroll System
 Akses melalui: http://localhost:5000
