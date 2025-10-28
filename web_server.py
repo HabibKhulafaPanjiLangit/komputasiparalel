@@ -433,10 +433,14 @@ def add_karyawan_endpoint():
         
         # Save to database if available
         if USE_DATABASE:
-            if db_helper.add_karyawan(karyawan_id, nama, jabatan, gaji_pokok):
+            ok, msg = db_helper.add_karyawan(karyawan_id, nama, jabatan, gaji_pokok)
+            # Reload data_karyawan dari database agar selalu sinkron
+            global data_karyawan
+            data_karyawan = db_helper.get_all_karyawan()
+            if ok:
                 return jsonify({'success': True, 'message': 'Karyawan berhasil ditambahkan'})
             else:
-                return jsonify({'success': False, 'message': 'Gagal menambahkan ke database'}), 500
+                return jsonify({'success': False, 'message': msg}), 500
         else:
             # Fallback to in-memory
             karyawan = {
@@ -511,12 +515,11 @@ def add_absen():
         if USE_DATABASE:
             from db_helper import add_absen, get_all_absen
             ok, msg = add_absen(absen['id'], absen['hari_masuk'])
+            # Reload data_absen dari database agar selalu sinkron
+            global data_absen
+            data_absen = get_all_absen()
             if not ok:
                 return jsonify({'success': False, 'message': msg}), 500
-            # Sinkronkan in-memory agar frontend langsung update
-            with status_lock:
-                data_absen.clear()
-                data_absen.extend(get_all_absen())
         else:
             with status_lock:
                 # Update jika sudah ada, tambah jika belum
@@ -533,30 +536,28 @@ def add_absen():
 @app.route('/api/gaji/hitung', methods=['POST'])
 def hitung_gaji():
     """Hitung gaji dengan MPI"""
+    # Selalu reload data dari database sebelum proses hitung
+    global data_karyawan, data_absen, data_gaji
+    data_karyawan = db_helper.get_all_karyawan()
+    data_absen = db_helper.get_all_absen()
     if not data_karyawan:
         return jsonify({'success': False, 'message': 'Belum ada data karyawan'}), 400
-    
     if not data_absen:
         return jsonify({'success': False, 'message': 'Belum ada data absen'}), 400
-    
     data = request.get_json() or {}
     mode = data.get('mode', 'parallel')  # parallel atau serial
     num_processes = data.get('processes', 4)
-    
     # Simpan data ke file temporary
     import csv
     with open('temp_karyawan.csv', 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=['id', 'nama', 'jabatan', 'gaji_pokok'])
         writer.writeheader()
         writer.writerows(data_karyawan)
-    
     with open('temp_absen.csv', 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=['id', 'hari_masuk'])
         writer.writeheader()
         writer.writerows(data_absen)
-    
     # Hitung gaji
-    global data_gaji
     data_gaji = []
     start_time = time.time()
     try:
