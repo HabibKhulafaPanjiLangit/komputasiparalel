@@ -558,41 +558,50 @@ def hitung_gaji():
     # Hitung gaji
     global data_gaji
     data_gaji = []
-    
     start_time = time.time()
-    
-    if mode == 'serial':
-        # Serial calculation
-        for karyawan in data_karyawan:
-            absen = next((a for a in data_absen if a['id'] == karyawan['id']), None)
-            if absen:
-                total_gaji = karyawan['gaji_pokok'] * absen['hari_masuk']
-                data_gaji.append({
-                    'id': karyawan['id'],
-                    'nama': karyawan['nama'],
-                    'total_gaji': total_gaji
-                })
-    else:
-        # Parallel dengan MPI (simplified - langsung hitung di sini)
-        # Untuk MPI sebenarnya, kita perlu program terpisah
-        for karyawan in data_karyawan:
-            absen = next((a for a in data_absen if a['id'] == karyawan['id']), None)
-            if absen:
-                total_gaji = karyawan['gaji_pokok'] * absen['hari_masuk']
-                data_gaji.append({
-                    'id': karyawan['id'],
-                    'nama': karyawan['nama'],
-                    'total_gaji': total_gaji
-                })
-    
-    elapsed = time.time() - start_time
-    
-    return jsonify({
-        'success': True,
-        'message': f'Gaji berhasil dihitung ({mode})',
-        'elapsed_time': elapsed,
-        'total_karyawan': len(data_gaji)
-    })
+    try:
+        if mode == 'serial':
+            # Serial calculation
+            for karyawan in data_karyawan:
+                absen = next((a for a in data_absen if a['id'] == karyawan['id']), None)
+                if absen:
+                    total_gaji = float(karyawan['gaji_pokok']) * int(absen['hari_masuk'])
+                    data_gaji.append({
+                        'id': karyawan['id'],
+                        'nama': karyawan['nama'],
+                        'jabatan': karyawan.get('jabatan', ''),
+                        'gaji_pokok': float(karyawan['gaji_pokok']),
+                        'hari_masuk': int(absen['hari_masuk']),
+                        'total_gaji': total_gaji
+                    })
+        else:
+            # Parallel dengan MPI (simplified - langsung hitung di sini)
+            for karyawan in data_karyawan:
+                absen = next((a for a in data_absen if a['id'] == karyawan['id']), None)
+                if absen:
+                    total_gaji = float(karyawan['gaji_pokok']) * int(absen['hari_masuk'])
+                    data_gaji.append({
+                        'id': karyawan['id'],
+                        'nama': karyawan['nama'],
+                        'jabatan': karyawan.get('jabatan', ''),
+                        'gaji_pokok': float(karyawan['gaji_pokok']),
+                        'hari_masuk': int(absen['hari_masuk']),
+                        'total_gaji': total_gaji
+                    })
+        elapsed = time.time() - start_time
+        # Simpan ke database
+        from db_helper import clear_and_save_gaji
+        ok, msg = clear_and_save_gaji(data_gaji, mode=mode, waktu=elapsed)
+        if not ok:
+            return jsonify({'success': False, 'message': msg}), 500
+        return jsonify({
+            'success': True,
+            'message': f'Gaji berhasil dihitung ({mode})',
+            'elapsed_time': elapsed,
+            'total_karyawan': len(data_gaji)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error saat menghitung gaji: {str(e)}'}), 500
 
 @app.route('/api/gaji', methods=['GET'])
 def get_gaji():
