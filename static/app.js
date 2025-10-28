@@ -134,13 +134,13 @@ function displayResults(results) {
         return;
     }
     
-    container.innerHTML = results.map(result => `
-        <div style="margin-bottom: 20px; border-left: 4px solid #667eea; padding-left: 15px;">
-            <h3 style="color: #667eea;">${result.name}</h3>
-            <p><strong>Waktu Eksekusi:</strong> ${result.timestamp}</p>
-            <pre>${result.output}</pre>
-        </div>
-    `).join('');
+    container.innerHTML = results.map(function(result) {
+        return '<div style="margin-bottom: 20px; border-left: 4px solid #667eea; padding-left: 15px;">' +
+            '<h3 style="color: #667eea;">' + result.name + '</h3>' +
+            '<p><strong>Waktu Eksekusi:</strong> ' + result.timestamp + '</p>' +
+            '<pre>' + result.output + '</pre>' +
+        '</div>';
+    }).join('');
 }
 
 // Clear results
@@ -171,30 +171,21 @@ async function loadKaryawan() {
             return;
         }
         
-        table.innerHTML = `
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nama</th>
-                        <th>Jabatan</th>
-                        <th>Gaji Pokok/Hari</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${karyawan.map(k => `
-                        <tr>
-                            <td>${k.id}</td>
-                            <td>${k.nama}</td>
-                            <td>${k.jabatan}</td>
-                            <td>Rp ${k.gaji_pokok.toLocaleString()}</td>
-                            <td><button class="delete-btn" onclick="deleteKaryawan('${k.id}')">Hapus</button></td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
+        var html = '<table><thead><tr>' +
+            '<th>ID</th><th>Nama</th><th>Jabatan</th><th>Gaji Pokok/Hari</th><th>Aksi</th>' +
+            '</tr></thead><tbody>';
+        for (var i = 0; i < karyawan.length; i++) {
+            var k = karyawan[i];
+            html += '<tr>' +
+                '<td>' + k.id + '</td>' +
+                '<td>' + k.nama + '</td>' +
+                '<td>' + k.jabatan + '</td>' +
+                '<td>Rp ' + k.gaji_pokok.toLocaleString() + '</td>' +
+                '<td><button class="delete-btn" onclick="deleteKaryawan(\'' + k.id + '\')">Hapus</button></td>' +
+                '</tr>';
+        }
+        html += '</tbody></table>';
+        table.innerHTML = html;
         
         // Update select options for absen form
         const select = document.getElementById('absen_id');
@@ -262,24 +253,18 @@ async function loadAbsen() {
             return;
         }
         
-        table.innerHTML = `
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID Karyawan</th>
-                        <th>Jumlah Hari Masuk</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${absen.map(a => `
-                        <tr>
-                            <td>${a.id}</td>
-                            <td>${a.hari_masuk} hari</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
+        var html = '<table><thead><tr>' +
+            '<th>ID Karyawan</th><th>Jumlah Hari Masuk</th>' +
+            '</tr></thead><tbody>';
+        for (var i = 0; i < absen.length; i++) {
+            var a = absen[i];
+            html += '<tr>' +
+                '<td>' + a.id + '</td>' +
+                '<td>' + a.hari_masuk + ' hari</td>' +
+                '</tr>';
+        }
+        html += '</tbody></table>';
+        table.innerHTML = html;
     } catch (error) {
         console.error('Error loading absen:', error);
     }
@@ -326,12 +311,16 @@ async function hitungGaji(mode) {
             body: JSON.stringify({ mode: mode })
         });
         
-        const result = await response.json();
-        
+        let result = null;
+        try {
+            result = await response.json();
+        } catch (e) {
+            alert('Gagal parsing response. Response bukan JSON.');
+            return;
+        }
         if (response.ok) {
-            alert(`Gaji berhasil dihitung!\nWaktu eksekusi: ${result.waktu_eksekusi}`);
+            alert('Gaji berhasil dihitung!\nWaktu eksekusi: ' + result.waktu_eksekusi);
             loadGaji();
-            
             // Switch to hasil tab
             document.querySelectorAll('.tab')[2].click();
         } else {
@@ -345,46 +334,38 @@ async function hitungGaji(mode) {
 async function loadGaji() {
     try {
         const response = await fetch('/api/gaji');
-        const gaji = await response.json();
-        
+        let gaji = [];
+        try {
+            gaji = await response.json();
+        } catch (e) {
+            console.error('Gagal parsing data gaji. Response bukan JSON.');
+            return;
+        }
         const table = document.getElementById('tableGaji');
         if (gaji.length === 0) {
             table.innerHTML = '<p>Belum ada hasil perhitungan gaji. Silakan hitung terlebih dahulu.</p>';
             return;
         }
-        
         const total = gaji.reduce((sum, g) => sum + g.total_gaji, 0);
-        
-        table.innerHTML = `
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nama</th>
-                        <th>Jabatan</th>
-                        <th>Gaji Pokok/Hari</th>
-                        <th>Hari Masuk</th>
-                        <th>Total Gaji</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${gaji.map(g => `
-                        <tr>
-                            <td>${g.id}</td>
-                            <td>${g.nama}</td>
-                            <td>${g.jabatan}</td>
-                            <td>Rp ${g.gaji_pokok.toLocaleString()}</td>
-                            <td>${g.hari_masuk} hari</td>
-                            <td><strong>Rp ${g.total_gaji.toLocaleString()}</strong></td>
-                        </tr>
-                    `).join('')}
-                    <tr style="background: #f7fafc; font-weight: bold;">
-                        <td colspan="5" style="text-align: right;">TOTAL</td>
-                        <td>Rp ${total.toLocaleString()}</td>
-                    </tr>
-                </tbody>
-            </table>
-        `;
+        var html = '<table><thead><tr>' +
+            '<th>ID</th><th>Nama</th><th>Jabatan</th><th>Gaji Pokok/Hari</th><th>Hari Masuk</th><th>Total Gaji</th>' +
+            '</tr></thead><tbody>';
+        for (var i = 0; i < gaji.length; i++) {
+            var g = gaji[i];
+            html += '<tr>' +
+                '<td>' + g.id + '</td>' +
+                '<td>' + g.nama + '</td>' +
+                '<td>' + g.jabatan + '</td>' +
+                '<td>Rp ' + g.gaji_pokok.toLocaleString() + '</td>' +
+                '<td>' + g.hari_masuk + ' hari</td>' +
+                '<td><strong>Rp ' + g.total_gaji.toLocaleString() + '</strong></td>' +
+                '</tr>';
+        }
+        html += '<tr style="background: #f7fafc; font-weight: bold;">' +
+            '<td colspan="5" style="text-align: right;">TOTAL</td>' +
+            '<td>Rp ' + total.toLocaleString() + '</td></tr>';
+        html += '</tbody></table>';
+        table.innerHTML = html;
     } catch (error) {
         console.error('Error loading gaji:', error);
     }
@@ -403,12 +384,16 @@ async function clearAll() {
     
     try {
         const responseKaryawan = await fetch('/api/karyawan');
-        const karyawan = await responseKaryawan.json();
-        
+        let karyawan = [];
+        try {
+            karyawan = await responseKaryawan.json();
+        } catch (e) {
+            alert('Gagal parsing data karyawan. Response bukan JSON.');
+            return;
+        }
         for (const k of karyawan) {
             await fetch(`/api/karyawan/${k.id}`, { method: 'DELETE' });
         }
-        
         alert('Semua data telah dihapus!');
         loadKaryawan();
         loadAbsen();
@@ -428,10 +413,15 @@ async function loadInteractiveStats() {
             fetch('/api/gaji')
         ]);
         
-        const karyawan = await karyawanRes.json();
-        const absen = await absenRes.json();
-        const gaji = await gajiRes.json();
-        
+        let karyawan = [], absen = [], gaji = [];
+        try {
+            karyawan = await karyawanRes.json();
+            absen = await absenRes.json();
+            gaji = await gajiRes.json();
+        } catch (e) {
+            console.error('Gagal parsing data statistik. Response bukan JSON.');
+            return;
+        }
         document.getElementById('statKaryawan').textContent = karyawan.length;
         document.getElementById('statAbsen').textContent = absen.length;
         document.getElementById('statGaji').textContent = gaji.length;
@@ -464,11 +454,16 @@ function hideInputAbsenForm() {
 async function loadKaryawanForSelect() {
     try {
         const response = await fetch('/api/karyawan');
-        const karyawan = await response.json();
-        
+        let karyawan = [];
+        try {
+            karyawan = await response.json();
+        } catch (e) {
+            console.error('Gagal parsing data karyawan. Response bukan JSON.');
+            return;
+        }
         const select = document.getElementById('int_absen_id');
         select.innerHTML = '<option value="">-- Pilih Karyawan --</option>' +
-            karyawan.map(k => `<option value="${k.id}">${k.id} - ${k.nama}</option>`).join('');
+            karyawan.map(function(k) { return '<option value="' + k.id + '">' + k.id + ' - ' + k.nama + '</option>'; }).join('');
     } catch (error) {
         console.error('Error:', error);
     }
@@ -491,10 +486,15 @@ async function submitKaryawanInteractive(event) {
             body: JSON.stringify(data)
         });
         
-        const result = await response.json();
-        
+        let result = null;
+        try {
+            result = await response.json();
+        } catch (e) {
+            showResult('Gagal parsing response. Response bukan JSON.', 'error');
+            return;
+        }
         if (response.ok) {
-            showResult(`Berhasil! Karyawan ${data.nama} telah ditambahkan.`, 'success');
+            showResult('Berhasil! Karyawan ' + data.nama + ' telah ditambahkan.', 'success');
             document.querySelector('#formInputKaryawan form').reset();
             hideInputKaryawanForm();
             loadInteractiveStats();
@@ -521,10 +521,15 @@ async function submitAbsenInteractive(event) {
             body: JSON.stringify(data)
         });
         
-        const result = await response.json();
-        
+        let result = null;
+        try {
+            result = await response.json();
+        } catch (e) {
+            showResult('Gagal parsing response. Response bukan JSON.', 'error');
+            return;
+        }
         if (response.ok) {
-            showResult(`Berhasil! Data absen untuk ${data.id} telah disimpan (${data.hari_masuk} hari).`, 'success');
+            showResult('Berhasil! Data absen untuk ' + data.id + ' telah disimpan (' + data.hari_masuk + ' hari).', 'success');
             document.querySelector('#formInputAbsen form').reset();
             hideInputAbsenForm();
             loadInteractiveStats();
@@ -547,18 +552,22 @@ async function hitungGajiInteractive(mode) {
             body: JSON.stringify({ mode: mode })
         });
         
-        const result = await response.json();
-        
+        let result = null;
+        try {
+            result = await response.json();
+        } catch (e) {
+            updateInteractiveStatus('error');
+            showResult('Gagal parsing response. Response bukan JSON.', 'error');
+            return;
+        }
         if (response.ok) {
             updateInteractiveStatus('success');
-            showResult(
-                `<strong>Perhitungan Selesai!</strong><br>
-                Mode: ${mode.toUpperCase()}<br>
-                Waktu Eksekusi: ${result.waktu_eksekusi}<br>
-                Total Karyawan: ${result.jumlah}<br>
-                <button class="btn" style="background: #4299e1; color: white; margin-top: 10px;" onclick="tampilkanDataGaji()">Lihat Hasil</button>`,
-                'success'
-            );
+            showResult('<strong>Perhitungan Selesai!</strong><br>' +
+                'Mode: ' + mode.toUpperCase() + '<br>' +
+                'Waktu Eksekusi: ' + result.waktu_eksekusi + '<br>' +
+                'Total Karyawan: ' + result.jumlah + '<br>' +
+                '<button class="btn" style="background: #4299e1; color: white; margin-top: 10px;" onclick="tampilkanDataGaji()">Lihat Hasil</button>',
+                'success');
             loadInteractiveStats();
         } else {
             updateInteractiveStatus('error');
@@ -573,51 +582,36 @@ async function hitungGajiInteractive(mode) {
 async function tampilkanDataGaji() {
     try {
         const response = await fetch('/api/gaji');
-        const gaji = await response.json();
-        
+        let gaji = [];
+        try {
+            gaji = await response.json();
+        } catch (e) {
+            showResult('Gagal parsing data gaji. Response bukan JSON.', 'error');
+            return;
+        }
         if (gaji.length === 0) {
             showResult('Belum ada data gaji. Silakan hitung terlebih dahulu.', 'info');
             return;
         }
-        
-        const total = gaji.reduce((sum, g) => sum + g.total_gaji, 0);
-        
-        let html = `
-            <h4>Data Gaji Karyawan (${gaji.length} karyawan)</h4>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nama</th>
-                        <th>Jabatan</th>
-                        <th>Hari Masuk</th>
-                        <th>Total Gaji</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        gaji.forEach(g => {
-            html += `
-                <tr>
-                    <td>${g.id}</td>
-                    <td>${g.nama}</td>
-                    <td>${g.jabatan}</td>
-                    <td>${g.hari_masuk} hari</td>
-                    <td><strong>Rp ${g.total_gaji.toLocaleString()}</strong></td>
-                </tr>
-            `;
-        });
-        
-        html += `
-                    <tr style="background: #f7fafc; font-weight: bold;">
-                        <td colspan="4" style="text-align: right;">TOTAL SEMUA GAJI</td>
-                        <td>Rp ${total.toLocaleString()}</td>
-                    </tr>
-                </tbody>
-            </table>
-        `;
-        
+        const total = gaji.reduce(function(sum, g) { return sum + g.total_gaji; }, 0);
+        var html = '<h4>Data Gaji Karyawan (' + gaji.length + ' karyawan)</h4>';
+        html += '<table><thead><tr>' +
+            '<th>ID</th><th>Nama</th><th>Jabatan</th><th>Hari Masuk</th><th>Total Gaji</th>' +
+            '</tr></thead><tbody>';
+        for (var i = 0; i < gaji.length; i++) {
+            var g = gaji[i];
+            html += '<tr>' +
+                '<td>' + g.id + '</td>' +
+                '<td>' + g.nama + '</td>' +
+                '<td>' + g.jabatan + '</td>' +
+                '<td>' + g.hari_masuk + ' hari</td>' +
+                '<td><strong>Rp ' + g.total_gaji.toLocaleString() + '</strong></td>' +
+                '</tr>';
+        }
+        html += '<tr style="background: #f7fafc; font-weight: bold;">' +
+            '<td colspan="4" style="text-align: right;">TOTAL SEMUA GAJI</td>' +
+            '<td>Rp ' + total.toLocaleString() + '</td></tr>';
+        html += '</tbody></table>';
         showResult(html, 'success');
     } catch (error) {
         showResult('Error: ' + error.message, 'error');
@@ -633,12 +627,11 @@ async function simpanSemuaData() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `payroll_data_${new Date().getTime()}.csv`;
+            a.download = 'payroll_data_' + new Date().getTime() + '.csv';
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-            
             showResult('Data berhasil disimpan dan didownload sebagai CSV!', 'success');
         } else {
             showResult('Error: Gagal menyimpan data', 'error');
@@ -664,10 +657,15 @@ async function generateDummyData() {
             body: JSON.stringify({ jumlah: parseInt(jumlah) })
         });
         
-        const result = await response.json();
-        
+        let result = null;
+        try {
+            result = await response.json();
+        } catch (e) {
+            showResult('Gagal parsing response. Response bukan JSON.', 'error');
+            return;
+        }
         if (response.ok) {
-            showResult(`Berhasil generate ${result.jumlah} karyawan dummy beserta data absennya!`, 'success');
+            showResult('Berhasil generate ' + result.jumlah + ' karyawan dummy beserta data absennya!', 'success');
             loadInteractiveStats();
         } else {
             showResult('Error: ' + result.error, 'error');
@@ -682,12 +680,16 @@ async function hapusSemuaDataInteractive() {
     
     try {
         const responseKaryawan = await fetch('/api/karyawan');
-        const karyawan = await responseKaryawan.json();
-        
+        let karyawan = [];
+        try {
+            karyawan = await responseKaryawan.json();
+        } catch (e) {
+            showResult('Gagal parsing data karyawan. Response bukan JSON.', 'error');
+            return;
+        }
         for (const k of karyawan) {
             await fetch(`/api/karyawan/${k.id}`, { method: 'DELETE' });
         }
-        
         showResult('Semua data telah dihapus!', 'success');
         loadInteractiveStats();
     } catch (error) {
@@ -704,7 +706,7 @@ function showResult(message, type) {
     else if (type === 'error') className = 'status-error';
     else if (type === 'info') className = 'status-running';
     
-    contentDiv.innerHTML = `<div class="${className}" style="padding: 15px; border-radius: 5px;">${message}</div>`;
+    contentDiv.innerHTML = '<div class="' + className + '" style="padding: 15px; border-radius: 5px;">' + message + '</div>';
     resultDiv.style.display = 'block';
     
     // Hide forms when showing result
@@ -728,8 +730,13 @@ async function loadDatabaseInfo() {
     
     try {
         const response = await fetch('/api/database/browse');
-        const result = await response.json();
-        
+        let result = null;
+        try {
+            result = await response.json();
+        } catch (e) {
+            infoDiv.innerHTML = '<div class="status-error" style="padding: 15px;">Gagal parsing response. Response bukan JSON.</div>';
+            return;
+        }
         if (!result.success) {
             infoDiv.innerHTML = '<div class="status-error" style="padding: 15px;">' + result.message + '</div>';
             return;

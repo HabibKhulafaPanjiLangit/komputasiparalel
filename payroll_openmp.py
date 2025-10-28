@@ -18,212 +18,257 @@ except ImportError:
 # Set number of threads
 if HAS_OMP:
     omp_set_num_threads(4)
+# ===============================
+# PROGRAM PENGHITUNGAN GAJI PARALEL (OpenMP/Serial)
+# ===============================
+import time
+import csv
+import os
+import matplotlib.pyplot as plt
 
-@dataclass
-class Employee:
-    id: int
-    name: str
-    base_salary: float
-    overtime_hours: float = 0.0
-    bonus: float = 0.0
-    deductions: float = 0.0
-    total_salary: float = 0.0
+# Coba import omp4py
+try:
+    from omp4py import omp
+    omp_enabled = True
+except Exception:
+    omp_enabled = False
+    omp = None
 
-class PayrollSystem:
-    def __init__(self):
-        self.employees: List[Employee] = []
-        self.overtime_rate = 1.5  # 150% dari gaji per jam
-        self.work_hours_per_month = 160  # 8 jam x 20 hari
-    
-    def add_employee(self, name: str, base_salary: float):
-        emp = Employee(
-            id=len(self.employees) + 1,
-            name=name,
-            base_salary=base_salary
-        )
-        self.employees.append(emp)
-        print(f"✓ Karyawan '{name}' berhasil ditambahkan (ID: {emp.id})")
-    
-    def update_overtime(self, emp_id: int, hours: float):
-        if 0 < emp_id <= len(self.employees):
-            self.employees[emp_id - 1].overtime_hours = hours
-            print(f"✓ Lembur diupdate untuk ID {emp_id}")
-        else:
-            print("✗ ID karyawan tidak ditemukan!")
-    
-    def update_bonus(self, emp_id: int, bonus: float):
-        if 0 < emp_id <= len(self.employees):
-            self.employees[emp_id - 1].bonus = bonus
-            print(f"✓ Bonus diupdate untuk ID {emp_id}")
-        else:
-            print("✗ ID karyawan tidak ditemukan!")
-    
-    def update_deductions(self, emp_id: int, deductions: float):
-        if 0 < emp_id <= len(self.employees):
-            self.employees[emp_id - 1].deductions = deductions
-            print(f"✓ Potongan diupdate untuk ID {emp_id}")
-        else:
-            print("✗ ID karyawan tidak ditemukan!")
-    
-    @omp
-    def calculate_all_salaries(self):
-        """Hitung gaji semua karyawan dengan paralelisasi OpenMP"""
-        import time
-        
-        t0 = time.perf_counter()
-        num_employees = len(self.employees)
-        
-        if num_employees == 0:
-            print("Tidak ada karyawan untuk dihitung!")
-            return
-        
-        if HAS_OMP:
-            # Parallel calculation
-            with omp("parallel for"):
-                for i in range(num_employees):
-                    self._calculate_single_salary(i)
-        else:
-            # Sequential fallback
-            for i in range(num_employees):
-                self._calculate_single_salary(i)
-        
-        t1 = time.perf_counter()
-        mode = "Parallel (OpenMP)" if HAS_OMP else "Sequential"
-        print(f"✓ Gaji {num_employees} karyawan berhasil dihitung ({mode}, {t1-t0:.3f}s)")
-    
-    def _calculate_single_salary(self, index: int):
-        """Hitung gaji satu karyawan"""
-        emp = self.employees[index]
-        
-        # Hitung gaji per jam
-        hourly_rate = emp.base_salary / self.work_hours_per_month
-        
-        # Hitung uang lembur
-        overtime_pay = emp.overtime_hours * hourly_rate * self.overtime_rate
-        
-        # Total gaji = gaji pokok + lembur + bonus - potongan
-        emp.total_salary = emp.base_salary + overtime_pay + emp.bonus - emp.deductions
-    
-    def display_all_payroll(self):
-        """Tampilkan slip gaji semua karyawan"""
-        if not self.employees:
-            print("Tidak ada data karyawan!")
-            return
-        
-        print("\n" + "="*80)
-        print(" "*25 + "DAFTAR GAJI KARYAWAN")
-        print("="*80)
-        print(f"{'ID':<5} {'Nama':<20} {'Gaji Pokok':>12} {'Lembur':>10} {'Bonus':>10} {'Potongan':>10} {'Total':>12}")
-        print("-"*80)
-        
-        total_payroll = 0.0
-        for emp in self.employees:
-            hourly_rate = emp.base_salary / self.work_hours_per_month
-            overtime_pay = emp.overtime_hours * hourly_rate * self.overtime_rate
-            
-            print(f"{emp.id:<5} {emp.name:<20} {emp.base_salary:>12,.0f} {overtime_pay:>10,.0f} "
-                  f"{emp.bonus:>10,.0f} {emp.deductions:>10,.0f} {emp.total_salary:>12,.0f}")
-            total_payroll += emp.total_salary
-        
-        print("-"*80)
-        print(f"{'TOTAL PAYROLL':>66} {total_payroll:>12,.0f}")
-        print("="*80 + "\n")
-    
-    def generate_sample_data(self, count: int = 100):
-        """Generate data karyawan sample untuk testing"""
-        names = ["Andi", "Budi", "Citra", "Dewi", "Eko", "Fitri", "Gani", "Hana", "Indra", "Joko"]
-        
-        for i in range(count):
-            name = f"{random.choice(names)} {i+1}"
-            base_salary = random.uniform(5_000_000, 20_000_000)
-            overtime = random.uniform(0, 20)
-            bonus = random.uniform(0, 2_000_000) if random.random() > 0.5 else 0
-            deductions = random.uniform(100_000, 500_000)
-            
-            emp = Employee(
-                id=len(self.employees) + 1,
-                name=name,
-                base_salary=base_salary,
-                overtime_hours=overtime,
-                bonus=bonus,
-                deductions=deductions
-            )
-            self.employees.append(emp)
-        
-        print(f"✓ {count} data karyawan sample berhasil dibuat")
+# -------------------------------
+# Data global
+# -------------------------------
+data_karyawan = []
+data_absen = []
+data_gaji = []
 
-def show_menu():
-    print("\n" + "="*50)
-    print(" "*10 + "SISTEM PENGGAJIAN KARYAWAN")
-    print("="*50)
-    print("1. Tambah Karyawan")
-    print("2. Update Lembur")
-    print("3. Update Bonus")
-    print("4. Update Potongan")
-    print("5. Hitung Semua Gaji (Parallel)")
-    print("6. Tampilkan Slip Gaji")
-    print("7. Generate Data Sample")
-    print("0. Keluar")
-    print("="*50)
+serial_times = []
+parallel_times = []
+jumlah_data = []
 
-def main():
-    payroll = PayrollSystem()
-    
+# -------------------------------
+# Fungsi bantu CSV
+# -------------------------------
+def simpan_ke_csv(nama_file, data, fieldnames):
+    with open(nama_file, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
+    print(f"✅ Data berhasil disimpan ke '{nama_file}'")
+
+def muat_dari_csv(nama_file):
+    if not os.path.exists(nama_file):
+        print(f"    File '{nama_file}' tidak ditemukan.")
+        return []
+    with open(nama_file, mode='r', newline='', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        return list(reader)
+
+# -------------------------------
+# Menu utama
+# -------------------------------
+def menu():
     while True:
-        show_menu()
-        choice = input("Pilih menu (0-7): ").strip()
-        
-        if choice == "1":
-            name = input("Nama karyawan: ").strip()
-            try:
-                salary = float(input("Gaji pokok: "))
-                payroll.add_employee(name, salary)
-            except ValueError:
-                print("✗ Input gaji tidak valid!")
-        
-        elif choice == "2":
-            try:
-                emp_id = int(input("ID karyawan: "))
-                hours = float(input("Jam lembur: "))
-                payroll.update_overtime(emp_id, hours)
-            except ValueError:
-                print("✗ Input tidak valid!")
-        
-        elif choice == "3":
-            try:
-                emp_id = int(input("ID karyawan: "))
-                bonus = float(input("Bonus: "))
-                payroll.update_bonus(emp_id, bonus)
-            except ValueError:
-                print("✗ Input tidak valid!")
-        
-        elif choice == "4":
-            try:
-                emp_id = int(input("ID karyawan: "))
-                deductions = float(input("Potongan: "))
-                payroll.update_deductions(emp_id, deductions)
-            except ValueError:
-                print("✗ Input tidak valid!")
-        
-        elif choice == "5":
-            payroll.calculate_all_salaries()
-        
-        elif choice == "6":
-            payroll.display_all_payroll()
-        
-        elif choice == "7":
-            try:
-                count = int(input("Jumlah data sample (default 100): ") or "100")
-                payroll.generate_sample_data(count)
-            except ValueError:
-                print("✗ Input tidak valid!")
-        
-        elif choice == "0":
-            print("\nTerima kasih! Program selesai.")
-            break
-        
-        else:
-            print("✗ Pilihan tidak valid!")
+        print("\n=== MENU PENGHITUNGAN GAJI KARYAWAN ===")
+        print("1. Input Data Karyawan")
+        print("2. Input Data Absen")
+        print("3. Hitung Gaji (Serial)")
+        print("4. Hitung Gaji (Parallel - OpenMP)")
+        print("5. Tampilkan Data Gaji")
+        print("6. Keluar")
+        print("7. Simpan Semua Data ke File CSV")
+        print("8. Muat Data dari File CSV")
+        print("9. Tampilkan Grafik Perbandingan Waktu")
 
+        pilihan = input("Pilih menu (1-9): ")
+
+        if pilihan == "1":
+            input_karyawan()
+        elif pilihan == "2":
+            input_absen()
+        elif pilihan == "3":
+            hitung_gaji_serial()
+        elif pilihan == "4":
+            hitung_gaji_parallel()
+        elif pilihan == "5":
+            tampilkan_gaji()
+        elif pilihan == "6":
+            print("Program selesai.")
+            break
+        elif pilihan == "7":
+            simpan_semua_data()
+        elif pilihan == "8":
+            muat_semua_data()
+        elif pilihan == "9":
+            tampilkan_grafik()
+        else:
+            print("Pilihan tidak valid!")
+
+# -------------------------------
+# Input Data
+# -------------------------------
+def input_karyawan():
+    try:
+        n = int(input("Masukkan jumlah karyawan: "))
+    except ValueError:
+        print("Input tidak valid!")
+        return
+    for i in range(n):
+        print(f"\nData karyawan ke-{i+1}")
+        idk = input("ID Karyawan: ")
+        nama = input("Nama Karyawan: ")
+        jabatan = input("Jabatan: ")
+        while True:
+            try:
+                gaji_pokok = float(input("Gaji Pokok per Hari: "))
+                break
+            except ValueError:
+                print("     Input tidak valid! Masukkan angka, contoh: 150000")
+        data_karyawan.append({
+            "id": idk,
+            "nama": nama,
+            "jabatan": jabatan,
+            "gaji_pokok": gaji_pokok
+        })
+    print("✅ Data karyawan berhasil disimpan.")
+
+# -------------------------------
+# Input Absen
+# -------------------------------
+def input_absen():
+    if not data_karyawan:
+        print("     Input data karyawan terlebih dahulu!")
+        return
+    data_absen.clear()
+    for karyawan in data_karyawan:
+        print(f"\nAbsen untuk {karyawan['nama']}")
+        while True:
+            try:
+                hari_masuk = int(input("Jumlah Hari Masuk: "))
+                break
+            except ValueError:
+                print("     Masukkan angka yang valid!")
+        data_absen.append({
+            "id": karyawan["id"],
+            "hari_masuk": hari_masuk
+        })
+    print("✅ Data absen berhasil disimpan.")
+
+# -------------------------------
+# Hitung Gaji (Serial)
+# -------------------------------
+def hitung_gaji_serial():
+    if not data_absen:
+        print("     Input data absen terlebih dahulu!")
+        return
+    data_gaji.clear()
+    start = time.time()
+    for i, k in enumerate(data_karyawan):
+        hari_masuk = int(data_absen[i]["hari_masuk"])
+        total = float(k["gaji_pokok"]) * hari_masuk
+        data_gaji.append({
+            "id": k["id"],
+            "nama": k["nama"],
+            "total_gaji": total
+        })
+    end = time.time()
+    elapsed = end - start
+    serial_times.append(elapsed)
+    jumlah_data.append(len(data_karyawan))
+    print(f"✅ Gaji berhasil dihitung secara SERIAL dalam {elapsed:.6f} detik.")
+
+# -------------------------------
+# Hitung Gaji (Parallel OpenMP)
+# -------------------------------
+def hitung_gaji_parallel():
+    if not data_absen:
+        print("     Input data absen terlebih dahulu!")
+        return
+    print("Menghitung gaji secara paralel...")
+    data_gaji.clear()
+    start = time.time()
+    if omp_enabled and hasattr(omp, "parallel_for"):
+        @omp("parallel for")
+        def _():
+            for i in range(len(data_karyawan)):
+                k = data_karyawan[i]
+                hari_masuk = int(data_absen[i]["hari_masuk"])
+                total = float(k["gaji_pokok"]) * hari_masuk
+                with omp.critical:
+                    data_gaji.append({
+                        "id": k["id"],
+                        "nama": k["nama"],
+                        "total_gaji": total
+                    })
+    else:
+        for i in range(len(data_karyawan)):
+            k = data_karyawan[i]
+            hari_masuk = int(data_absen[i]["hari_masuk"])
+            total = float(k["gaji_pokok"]) * hari_masuk
+            data_gaji.append({
+                "id": k["id"],
+                "nama": k["nama"],
+                "total_gaji": total
+            })
+    end = time.time()
+    elapsed = end - start
+    parallel_times.append(elapsed)
+    jumlah_data.append(len(data_karyawan))
+    if omp_enabled:
+        print(f"✅ Gaji berhasil dihitung secara PARALEL (omp4py aktif) dalam {elapsed:.6f} detik.")
+    else:
+        print(f"     omp4py tidak aktif, perhitungan dijalankan secara SERIAL dalam {elapsed:.6f} detik.")
+
+# -------------------------------
+# Tampilkan Data Gaji
+# -------------------------------
+def tampilkan_gaji():
+    if not data_gaji:
+        print("     Belum ada data gaji yang dihitung.")
+        return
+    print("\n=== DATA GAJI KARYAWAN ===")
+    for g in data_gaji:
+        print(f"ID: {g['id']}\tNama: {g['nama']}\tTotal Gaji: Rp {float(g['total_gaji']):,.2f}")
+
+# -------------------------------
+# Simpan & Muat Data CSV
+# -------------------------------
+def simpan_semua_data():
+    simpan_ke_csv("karyawan.csv", data_karyawan, ["id", "nama", "jabatan", "gaji_pokok"])
+    simpan_ke_csv("absen.csv", data_absen, ["id", "hari_masuk"])
+    simpan_ke_csv("gaji.csv", data_gaji, ["id", "nama", "total_gaji"])
+
+def muat_semua_data():
+    global data_karyawan, data_absen, data_gaji
+    data_karyawan = muat_dari_csv("karyawan.csv")
+    data_absen = muat_dari_csv("absen.csv")
+    data_gaji = muat_dari_csv("gaji.csv")
+    print("✅ Semua data berhasil dimuat dari file CSV.")
+
+# -------------------------------
+# Tampilkan Grafik Perbandingan Waktu
+# -------------------------------
+def tampilkan_grafik():
+    if not serial_times or not parallel_times:
+        print("     Belum ada data perbandingan waktu eksekusi!")
+        print("Silakan jalankan perhitungan serial dan paralel terlebih dahulu.")
+        return
+    plt.figure(figsize=(8, 5))
+    plt.plot(jumlah_data[:len(serial_times)], serial_times, marker='o', label='Serial')
+    plt.plot(jumlah_data[:len(parallel_times)], parallel_times, marker='s', label='Parallel (OpenMP)')
+    plt.title('Perbandingan Waktu Eksekusi Serial vs Parallel')
+    plt.xlabel('Jumlah Data Karyawan')
+    plt.ylabel('Waktu Eksekusi (detik)')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+    print("\n=== HASIL SPEEDUP ===")
+    for i in range(min(len(serial_times), len(parallel_times))):
+        speedup = serial_times[i] / parallel_times[i] if parallel_times[i] != 0 else 0
+        print(f"Data {jumlah_data[i]} karyawan → Speedup = {speedup:.2f}x")
+
+# -------------------------------
+# Jalankan Program
+# -------------------------------
 if __name__ == "__main__":
-    main()
+    menu()
