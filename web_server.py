@@ -499,15 +499,24 @@ def add_absen():
             'id': str(data['id']),
             'hari_masuk': int(data['hari_masuk'])
         }
-        
-        with status_lock:
-            # Update jika sudah ada, tambah jika belum
-            existing = next((a for a in data_absen if a['id'] == absen['id']), None)
-            if existing:
-                existing['hari_masuk'] = absen['hari_masuk']
-            else:
-                data_absen.append(absen)
-        
+        if USE_DATABASE:
+            from db_helper import add_absen, get_all_absen
+            ok, msg = add_absen(absen['id'], absen['hari_masuk'])
+            if not ok:
+                return jsonify({'success': False, 'message': msg}), 500
+            # Sinkronkan in-memory agar frontend langsung update
+            with status_lock:
+                data_absen.clear()
+                data_absen.extend(get_all_absen())
+        else:
+            with status_lock:
+                # Update jika sudah ada, tambah jika belum
+                existing = next((a for a in data_absen if a['id'] == absen['id']), None)
+                if existing:
+                    existing['hari_masuk'] = absen['hari_masuk']
+                else:
+                    data_absen.append(absen)
+        print(f"[DEBUG] Data absen sekarang: {data_absen}")
         return jsonify({'success': True, 'message': 'Data absen berhasil disimpan'})
     except ValueError as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 400
