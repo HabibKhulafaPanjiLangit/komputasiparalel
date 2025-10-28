@@ -629,21 +629,28 @@ def export_data():
     import csv
     
     try:
+        # Selalu ambil data terbaru dari database
+        karyawan_list = db_helper.get_all_karyawan()
+        absen_list = db_helper.get_all_absen()
+        gaji_list = db_helper.get_all_gaji()
+
         with open('karyawan.csv', 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=['id', 'nama', 'jabatan', 'gaji_pokok'])
             writer.writeheader()
-            writer.writerows(data_karyawan)
-        
+            writer.writerows(karyawan_list)
+
         with open('absen.csv', 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=['id', 'hari_masuk'])
             writer.writeheader()
-            writer.writerows(data_absen)
-        
+            writer.writerows(absen_list)
+
+        # Pastikan field gaji sesuai dengan struktur database
+        gaji_fields = ['id', 'nama', 'jabatan', 'gaji_pokok', 'hari_masuk', 'total_gaji', 'mode_hitung', 'waktu_hitung']
         with open('gaji.csv', 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=['id', 'nama', 'total_gaji'])
+            writer = csv.DictWriter(f, fieldnames=gaji_fields)
             writer.writeheader()
-            writer.writerows(data_gaji)
-        
+            writer.writerows(gaji_list)
+
         return jsonify({'success': True, 'message': 'Data berhasil di-export ke CSV'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
