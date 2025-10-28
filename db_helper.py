@@ -3,21 +3,13 @@ Database Helper Functions
 Wrapper functions untuk operasi database dengan fallback ke in-memory
 """
 
+
 try:
     from database import get_session, Karyawan, Absen, Gaji
     USE_DATABASE = True
 except Exception as e:
     print(f"[DB Helper] Database not available: {e}")
-    USE_DATABASE = False
-    get_session = None
-    Karyawan = None
-    Absen = None
-    Gaji = None
-
-# Fallback storage jika database tidak tersedia
-_memory_karyawan = []
-_memory_absen = []
-_memory_gaji = []
+    raise RuntimeError("FATAL: Database tidak tersedia. Pastikan database.py dan koneksi DB siap sebelum menjalankan aplikasi!")
 
 
 def get_all_karyawan():

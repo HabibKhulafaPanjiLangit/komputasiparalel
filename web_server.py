@@ -14,26 +14,16 @@ import threading
 from io import StringIO
 import csv
 
-# Import database helpers
-try:
-    import db_helper
-    USE_DATABASE = True
-    print("[DB] Database helpers loaded")
-    
-    # Load initial data from database
-    print("[DB] Loading data from database...")
-    data_karyawan = db_helper.get_all_karyawan()
-    data_absen = db_helper.get_all_absen()
-    data_gaji = db_helper.get_all_gaji()
-    print(f"[DB] Loaded: {len(data_karyawan)} karyawan, {len(data_absen)} absen, {len(data_gaji)} gaji")
-    
-except ImportError as e:
-    USE_DATABASE = False
-    print(f"[DB] Database not available: {e}")
-    # Fallback data
-    data_karyawan = []
-    data_absen = []
-    data_gaji = []
+
+# Import database helpers (wajib DB, tidak ada fallback)
+import db_helper
+USE_DATABASE = True
+print("[DB] Database helpers loaded")
+print("[DB] Loading data from database...")
+data_karyawan = db_helper.get_all_karyawan()
+data_absen = db_helper.get_all_absen()
+data_gaji = db_helper.get_all_gaji()
+print(f"[DB] Loaded: {len(data_karyawan)} karyawan, {len(data_absen)} absen, {len(data_gaji)} gaji")
 
 app = Flask(__name__)
 
