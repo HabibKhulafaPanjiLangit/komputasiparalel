@@ -419,6 +419,7 @@ def get_karyawan():
 
 @app.route('/api/karyawan', methods=['POST'])
 def add_karyawan_endpoint():
+    print(f"[LOG] Input karyawan: {data}")
     """Menambah data karyawan"""
     data = request.get_json()
     
@@ -437,9 +438,12 @@ def add_karyawan_endpoint():
             # Reload data_karyawan dari database agar selalu sinkron
             global data_karyawan
             data_karyawan = db_helper.get_all_karyawan()
+            print(f"[LOG] Data karyawan setelah insert: {data_karyawan}")
             if ok:
+                print("[LOG] Karyawan berhasil ditambahkan ke database.")
                 return jsonify({'success': True, 'message': 'Karyawan berhasil ditambahkan'})
             else:
+                print(f"[LOG] Gagal menambahkan karyawan: {msg}")
                 return jsonify({'success': False, 'message': msg}), 500
         else:
             # Fallback to in-memory
@@ -501,6 +505,7 @@ def get_absen():
 
 @app.route('/api/absen', methods=['POST'])
 def add_absen():
+    print(f"[LOG] Input absen: {data}")
     """Menambah data absen"""
     data = request.get_json()
     
@@ -518,7 +523,9 @@ def add_absen():
             # Reload data_absen dari database agar selalu sinkron
             global data_absen
             data_absen = get_all_absen()
+            print(f"[LOG] Data absen setelah insert: {data_absen}")
             if not ok:
+                print(f"[LOG] Gagal menambahkan absen: {msg}")
                 return jsonify({'success': False, 'message': msg}), 500
         else:
             with status_lock:
@@ -689,6 +696,7 @@ def generate_dummy():
 
 @app.route('/api/database/browse', methods=['GET'])
 def browse_database_api():
+    print("[LOG] Database Browser diakses. Membaca isi database...")
     """Browse database dan tampilkan info semua table"""
     try:
         import sqlite3
