@@ -319,12 +319,14 @@ async function hitungGaji(mode) {
             return;
         }
         if (response.ok) {
-            alert('Gaji berhasil dihitung!\nWaktu eksekusi: ' + result.waktu_eksekusi);
+            alert('Gaji berhasil dihitung!\nWaktu eksekusi: ' + (result.waktu_eksekusi || result.elapsed_time || '-'));
             loadGaji();
             // Switch to hasil tab
             document.querySelectorAll('.tab')[2].click();
         } else {
-            alert('Error: ' + result.error);
+            // Tampilkan pesan error dari backend (result.message), fallback ke result.error atau seluruh JSON
+            let msg = result.message || result.error || JSON.stringify(result);
+            alert('Error: ' + msg);
         }
     } catch (error) {
         alert('Error: ' + error.message);
@@ -564,14 +566,15 @@ async function hitungGajiInteractive(mode) {
             updateInteractiveStatus('success');
             showResult('<strong>Perhitungan Selesai!</strong><br>' +
                 'Mode: ' + mode.toUpperCase() + '<br>' +
-                'Waktu Eksekusi: ' + result.waktu_eksekusi + '<br>' +
-                'Total Karyawan: ' + result.jumlah + '<br>' +
+                'Waktu Eksekusi: ' + (result.waktu_eksekusi || result.elapsed_time || '-') + '<br>' +
+                'Total Karyawan: ' + (result.jumlah || result.total_karyawan || '-') + '<br>' +
                 '<button class="btn" style="background: #4299e1; color: white; margin-top: 10px;" onclick="tampilkanDataGaji()">Lihat Hasil</button>',
                 'success');
             loadInteractiveStats();
         } else {
             updateInteractiveStatus('error');
-            showResult('Error: ' + result.error, 'error');
+            let msg = result.message || result.error || JSON.stringify(result);
+            showResult('Error: ' + msg, 'error');
         }
     } catch (error) {
         updateInteractiveStatus('error');
